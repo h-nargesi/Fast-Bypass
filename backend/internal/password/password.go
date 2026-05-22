@@ -2,7 +2,7 @@ package password
 
 import (
 	"regexp"
-	"unicode"
+	// "unicode"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -30,17 +30,21 @@ func ValidVPN(pw string) bool {
 }
 
 func ValidPanel(pw string) bool {
-	if len(pw) < 8 {
+	if len(pw) < 3 {
 		return false
 	}
-	var letter, digit bool
-	for _, r := range pw {
-		if unicode.IsLetter(r) {
-			letter = true
-		}
-		if unicode.IsDigit(r) {
-			digit = true
-		}
-	}
-	return letter && digit
+	return true
+	// if len(pw) < 8 {
+	// 	return false
+	// }
+	// var letter, digit bool
+	// for _, r := range pw {
+	// 	if unicode.IsLetter(r) {
+	// 		letter = true
+	// 	}
+	// 	if unicode.IsDigit(r) {
+	// 		digit = true
+	// 	}
+	// }
+	// return letter && digit
 }
