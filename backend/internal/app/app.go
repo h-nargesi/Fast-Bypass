@@ -26,9 +26,9 @@ func New(cfg config.Config, log *slog.Logger, st *store.Store) (*App, error) {
 	if err != nil {
 		loc = time.UTC
 	}
-	var mt mikrotik.Client = mikrotik.NewFake()
-	if !cfg.MikrotikFake {
-		mt = mikrotik.NewFake()
+	mt, err := mikrotik.NewFromConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 	cached := mikrotik.NewCached(mt, cfg.MikrotikCacheTTL)
 	return &App{

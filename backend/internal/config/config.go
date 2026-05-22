@@ -53,9 +53,9 @@ func Load() Config {
 
 		MikrotikCacheTTL: envDuration("MIKROTIK_CACHE_TTL", 30*time.Second),
 		MikrotikFake:     envBool("MIKROTIK_FAKE", true),
-		MikrotikHost:     env("MIKROTIK_HOST", "192.168.88.1"),
+		MikrotikHost:     env("MIKROTIK_HOST", "192.168.56.11"),
 		MikrotikPort:     envInt("MIKROTIK_PORT", 8729),
-		MikrotikUser:     env("MIKROTIK_USERNAME", "api-panel"),
+		MikrotikUser:     env("MIKROTIK_USERNAME", "admin"),
 		MikrotikPass:     env("MIKROTIK_PASSWORD", ""),
 		MikrotikTLSInsec: envBool("MIKROTIK_TLS_INSECURE", false),
 		MikrotikTimeout:  envDuration("MIKROTIK_TIMEOUT", 10*time.Second),

@@ -90,7 +90,7 @@ npm run test:ci   # یک‌بار، برای CI
 
 **خارج پوشش تست frontend (فاز ۱):**
 
-- E2E با backend/روتر واقعی
+- E2E UI با backend/روتر واقعی (تست backend+روتر در `test-vm` زیر)
 - تمام صفحات و جریان‌های [user-flows.md](user-flows.md) (پس از پیاده‌سازی کامل UI)
 - ویرایش `PATCH /admin/vpn-users/:id` — **هنوز پیاده نشده**
 - لاگ نکردن password — بازبینی دستی / lint
@@ -137,10 +137,10 @@ npm run test:ci   # یک‌بار، برای CI
 3. پس از بالا آمدن روتر، در Winbox/CLI به کارت دوم IP بدهید، مثلاً:
 
 ```routeros
-/ip address add address=192.168.56.2/24 interface=ether2
+/ip address add address=192.168.56.11/24 interface=ether2
 ```
 
-4. در `.env` پنل: `MIKROTIK_HOST=192.168.56.2`
+4. در `.env` پنل: `MIKROTIK_HOST=192.168.56.11`
 
 **گزینه B — Bridged**
 
@@ -152,12 +152,23 @@ npm run test:ci   # یک‌بار، برای CI
 2. نسخه RouterOS را **7.21+** نگه دارید.
 3. پکیج **User Manager** را نصب/فعال کنید (`/system package print`).
 
-### ۵. آماده‌سازی برای پنل
+### VM آماده: Mikrotik-Base (`clean-test-state`)
+
+اسنپ‌شات تست از قبل این تنظیمات را دارد:
+
+| سرویس | مقدار |
+|--------|--------|
+| کاربر RouterOS | `admin` / `admin` |
+| SSH (CLI دستی، Winbox) | پورت `22` — `ssh admin@192.168.56.11` |
+| API-SSL (پنل و `make test-vm`) | پورت `8729` — `MIKROTIK_PORT` |
+
+پنل **فقط** از **api-ssl** استفاده می‌کند؛ SSH برای عیب‌یابی یا تنظیم دستی روی روتر است.
+
+### ۵. آماده‌سازی برای پنل (روتر تازه، بدون اسنپ‌شات)
+
+اگر VM از صفر ساخته شده (نه `Mikrotik-Base`):
 
 ```routeros
-# کاربر API (در production گروه محدودتر)
-/user add name=api-panel group=full password=StrongApiPass
-
 # فعال‌سازی API-SSL
 /ip service set api-ssl disabled=no port=8729
 
@@ -168,26 +179,29 @@ npm run test:ci   # یک‌بار، برای CI
 /system clock set time-zone-name=Asia/Tehran
 ```
 
+در production ترجیحاً کاربر API جدا با دسترسی محدود به User Manager (مثلاً `api-panel`) بسازید؛ برای VM توسعه همان `admin` کافی است.
+
 از میزبان تست اتصال:
 
 ```bash
-# اگر openssl در دسترس است — یا فقط پنل را با .env اجرا کنید
-nc -zv 192.168.56.2 8729
+nc -zv 192.168.56.11 8729
+ssh -p 22 admin@192.168.56.11
 ```
 
 ### ۶. تنظیم `.env` پنل (توسعه)
 
 ```bash
 cp .env.example .env
+# برای VM: MIKROTIK_FAKE=false
 ```
 
-| متغیر | مقدار نمونه (VirtualBox Host-Only) |
-|--------|-------------------------------------|
-| `MIKROTIK_HOST` | `192.168.56.2` |
+| متغیر | مقدار (VM Mikrotik-Base) |
+|--------|---------------------------|
+| `MIKROTIK_HOST` | `192.168.56.11` |
 | `MIKROTIK_PORT` | `8729` |
-| `MIKROTIK_USERNAME` | `api-panel` |
-| `MIKROTIK_PASSWORD` | همان رمز روتر |
-| `MIKROTIK_TLS_INSECURE` | `true` در dev اگر گواهی self-signed است |
+| `MIKROTIK_USERNAME` | `admin` |
+| `MIKROTIK_PASSWORD` | `admin` |
+| `MIKROTIK_TLS_INSECURE` | `true` |
 
 پس از پیاده‌سازی backend/frontend، همان [اجرای سریع](../README.md#اجرای-سریع-پس-از-پیاده‌سازی) در README.
 
@@ -203,6 +217,49 @@ cp .env.example .env
 | پنل `MIKROTIK_UNAVAILABLE` | IP/pورت؛ `api-ssl` فعال؛ ping از میزبان |
 | TLS خطا | `MIKROTIK_TLS_INSECURE=true` در dev |
 | User Manager خالی | پکیج user-manager نصب؛ نسخه ≥ 7.21 |
+
+## تست خودکار با VM (VirtualBox)
+
+تست‌های `internal/vmtest` با build tag **`vm`** به روتر واقعی در VirtualBox وصل می‌شوند (نه `FakeClient`). پیش‌نیاز: VM آماده (مثلاً `Mikrotik-Base` + اسنپ‌شات `clean-test-state`)، User Manager، کاربر API و پروفایل پیش‌فرض.
+
+### متغیرهای محیط
+
+| متغیر | پیش‌فرض | توضیح |
+|--------|---------|--------|
+| `MIKROTIK_FAKE` | (اجبار `false` در تست VM) | — |
+| `MIKROTIK_HOST` | `192.168.56.11` | IP روتر روی `vboxnet0` |
+| `MIKROTIK_PORT` | `8729` | api-ssl (نه SSH) |
+| `MIKROTIK_USERNAME` | `admin` | همان کاربر VM |
+| `MIKROTIK_PASSWORD` | `admin` | از `.env` یا پیش‌فرض اسنپ‌شات |
+| `MIKROTIK_TLS_INSECURE` | `true` در تست VM | گواهی self-signed |
+| `DEFAULT_PROFILE` | `profile-open-2M-30d` | باید روی روتر وجود داشته باشد |
+| `MIKROTIK_VM_NAME` | `Mikrotik-Base` | نام VM در VirtualBox |
+| `MIKROTIK_VM_SNAPSHOT` | `clean-test-state` | بازگردانی قبل از تست |
+| `MIKROTIK_VM_MANAGE` | `true` | `false` = VM از قبل روشن است؛ فقط منتظر پورت |
+| `MIKROTIK_VM_WAIT` | `90s` | زمان انتظار برای بالا آمدن api-ssl |
+
+### اجرا
+
+```bash
+cd backend
+cp ../.env.example ../.env   # admin/admin و MIKROTIK_FAKE=false برای VM
+make test-vm
+# یا:
+go test -tags=vm ./internal/vmtest/... -count=1 -timeout=15m
+```
+
+`TestMain` در صورت `MIKROTIK_VM_MANAGE=true`: `VBoxManage snapshot restore` → `startvm --type headless` → انتظار TCP روی `MIKROTIK_HOST:8729` → اجرای تست‌ها → خاموش کردن VM.
+
+### پوشش تست VM
+
+| تست | محتوا |
+|-----|--------|
+| `TestRouterOS_pingAndProfile` | اتصال api-ssl |
+| `TestRouterOS_createUser_panelComment` | `comment=panel:…` روی روتر |
+| `TestRouterOS_assignProfile` | `user-profile/add` |
+| `TestE2E_createVPNUser_onRouter` | `POST /vpn-users` + بررسی روتر |
+| `TestE2E_managerListIsolation` | جداسازی لیست + legacy `comment` |
+| `TestE2E_deleteVPNUser_removesFromRouter` | حذف از API و روتر |
 
 ## پذیرش دستی در VM
 

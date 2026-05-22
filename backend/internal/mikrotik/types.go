@@ -44,6 +44,14 @@ func NewCached(inner Client, ttl time.Duration) *CachedClient {
 	return &CachedClient{inner: inner, ttl: ttl, profiles: make(map[string][]UserProfile)}
 }
 
+// Inner returns the wrapped client (for tests).
+func (c *CachedClient) Inner() (Client, bool) {
+	if c == nil {
+		return nil, false
+	}
+	return c.inner, true
+}
+
 func (c *CachedClient) Ping() error { return c.inner.Ping() }
 
 func (c *CachedClient) ListUsers() ([]User, error) {

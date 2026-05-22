@@ -34,7 +34,10 @@
 
 ## تست
 
-برای توسعه و تست یکپارچه، می‌توان با **Oracle VirtualBox** یک روتر MikroTik (CHR) را به‌صورت مجازی بالا آورد و پنل را به IP همان VM وصل کرد. راه‌اندازی شبکه، User Manager و `.env`: [docs/testing.md](docs/testing.md).
+- تست خودکار بدون روتر: `cd backend && make test`
+- تست با VM MikroTik (VirtualBox): `make test-vm` — جزئیات env و `VBoxManage` در [docs/testing.md](docs/testing.md#تست-خودکار-با-vm-virtualbox)
+
+برای توسعه دستی، می‌توان با **Oracle VirtualBox** یک روتر MikroTik (CHR) را بالا آورد و پنل را به IP همان VM وصل کرد (`MIKROTIK_FAKE=false`).
 
 ## اجرای سریع
 

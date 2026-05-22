@@ -138,9 +138,3 @@ func (f *FakeClient) RemoveUserProfile(id string) error {
 	return ErrNotFound
 }
 
-func NewClient(fake bool) Client {
-	if fake {
-		return NewFake()
-	}
-	return NewFake() // real routeros client in later phase
-}
