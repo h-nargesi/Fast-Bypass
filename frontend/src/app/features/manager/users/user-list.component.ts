@@ -35,7 +35,7 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
             <tr>
               <th>نام</th>
               <th>فعال</th>
-              <th>اتصال همزمان</th>
+              <th>تعداد اتصالات همزمان</th>
               <th>پروفایل</th>
               <th></th>
             </tr>
@@ -55,9 +55,9 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
                 </td>
                 <td>
                   @if (u.id) {
-                    <a [routerLink]="['/users', u.id]">جزئیات</a>
+                    <a [routerLink]="['/users', u.id]">ویرایش</a>
                   } @else {
-                    <span class="muted">بدون متادیتا</span>
+                    <a [routerLink]="['/users/by-name', u.mikrotik_name]">ویرایش</a>
                   }
                 </td>
               </tr>

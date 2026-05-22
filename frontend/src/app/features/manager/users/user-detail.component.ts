@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client.service';
 import { VpnUserDetail } from '../../../core/models';
-import { VpnUserService } from '../../../core/services/vpn-user.service';
+import { PatchVpnBody, VpnUserService } from '../../../core/services/vpn-user.service';
 import { ConnectionBundleComponent } from '../../../shared/components/connection-bundle/connection-bundle.component';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ProfileStateChipComponent } from '../../../shared/components/profile-state-chip/profile-state-chip.component';
@@ -32,6 +32,9 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
     }
     @if (user(); as u) {
       <h2 class="page-title">{{ u.mikrotik_name }}</h2>
+      @if (!u.id) {
+        <p class="banner info">این کاربر هنوز در پنل ثبت نشده — با «ذخیره تغییرات» ثبت می‌شود.</p>
+      }
       <app-connection-bundle
         [bundle]="u.connection_bundle"
         [downloadOvpn]="downloadFn"
@@ -179,9 +182,30 @@ export class UserDetailComponent implements OnInit {
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((p) => {
+      const name = p.get('name');
+      if (name) {
+        this.loadByName(name);
+        return;
+      }
       const id = Number(p.get('id'));
       if (id) this.load(id);
     });
+  }
+
+  private applyUser(u: VpnUserDetail): void {
+    this.user.set(u);
+    this.editShared = u.shared_users;
+    this.editContactInfo = u.contact_info ?? '';
+    this.editNotes = u.notes ?? '';
+    this.routerEnabled = !u.disabled;
+  }
+
+  private afterWrite(res: VpnUserDetail, toastMsg: string): void {
+    this.applyUser(res);
+    this.toast.show(toastMsg);
+    if (res.id) {
+      void this.router.navigate(['/users', res.id], { replaceUrl: true });
+    }
   }
 
   load(id: number): void {
@@ -192,27 +216,44 @@ export class UserDetailComponent implements OnInit {
         return of(null);
       }))
       .subscribe((u) => {
-        if (!u) return;
-        this.user.set(u);
-        this.editShared = u.shared_users;
-        this.editContactInfo = u.contact_info ?? '';
-        this.editNotes = u.notes ?? '';
-        this.routerEnabled = !u.disabled;
+        if (u) this.applyUser(u);
       });
+  }
+
+  loadByName(name: string): void {
+    this.vpn
+      .getByName(name)
+      .pipe(catchError((e) => {
+        this.error.set(ApiClient.mapError(e));
+        return of(null);
+      }))
+      .subscribe((u) => {
+        if (u) this.applyUser(u);
+      });
+  }
+
+  reload(): void {
+    const u = this.user();
+    if (!u) return;
+    if (u.id) this.load(u.id);
+    else this.loadByName(u.mikrotik_name);
   }
 
   saveEdit(): void {
     const u = this.user();
     if (!u) return;
     this.saving.set(true);
-    const body: Record<string, unknown> = {
+    const body: PatchVpnBody = {
       shared_users: this.editShared,
       contact_info: this.editContactInfo,
       notes: this.editNotes,
       disabled: !this.routerEnabled,
     };
-    if (this.editPassword) body['password'] = this.editPassword;
-    this.vpn.patch(u.id, body).pipe(
+    if (this.editPassword) body.password = this.editPassword;
+    const req = u.id
+      ? this.vpn.patch(u.id, body)
+      : this.vpn.patchByName(u.mikrotik_name, body);
+    req.pipe(
       catchError((e) => {
         this.error.set(ApiClient.mapError(e));
         this.saving.set(false);
@@ -220,37 +261,39 @@ export class UserDetailComponent implements OnInit {
       }),
     ).subscribe((res) => {
       this.saving.set(false);
-      if (res) {
-        this.user.set(res);
-        this.toast.show('ذخیره شد');
-      }
+      if (res) this.afterWrite(res, 'ذخیره شد');
     });
   }
 
   assign(): void {
     const u = this.user();
     if (!u) return;
-    this.vpn.assignProfile(u.id, {
+    const body = {
       profile_name: this.defaultProfile,
       amount_paid: this.assignAmount ?? undefined,
       currency: this.assignAmount != null ? 'IRR' : undefined,
       note: this.assignNote || undefined,
-    }).pipe(catchError((e) => {
+    };
+    const req = u.id
+      ? this.vpn.assignProfile(u.id, body)
+      : this.vpn.assignProfileByName(u.mikrotik_name, body);
+    req.pipe(catchError((e) => {
       this.error.set(ApiClient.mapError(e));
       return of(null);
     })).subscribe((res) => {
-      if (res) {
-        this.user.set(res);
-        this.toast.show('پروفایل انتساب شد');
-      }
+      if (res) this.afterWrite(res, 'پروفایل انتساب شد');
     });
   }
 
   removeProfile(profileRowId: string): void {
     const u = this.user();
     if (!u) return;
-    this.vpn.removeProfile(u.id, profileRowId).subscribe({
-      next: () => this.load(u.id),
+    const done = () => this.reload();
+    const req = u.id
+      ? this.vpn.removeProfile(u.id, profileRowId)
+      : this.vpn.removeProfileByName(u.mikrotik_name, profileRowId);
+    req.subscribe({
+      next: done,
       error: (e) => this.error.set(ApiClient.mapError(e)),
     });
   }
@@ -259,7 +302,8 @@ export class UserDetailComponent implements OnInit {
     const u = this.user();
     if (!u) return;
     this.confirmDelete.set(false);
-    this.vpn.delete(u.id).subscribe({
+    const req = u.id ? this.vpn.delete(u.id) : this.vpn.deleteByName(u.mikrotik_name);
+    req.subscribe({
       next: () => void this.router.navigate(['/users']),
       error: (e: unknown) => this.error.set(ApiClient.mapError(e)),
     });
@@ -268,7 +312,8 @@ export class UserDetailComponent implements OnInit {
   downloadOvpn(): void {
     const u = this.user();
     if (!u) return;
-    this.vpn.downloadOvpn(u.id).subscribe({
+    const req = u.id ? this.vpn.downloadOvpn(u.id) : this.vpn.downloadOvpnByName(u.mikrotik_name);
+    req.subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

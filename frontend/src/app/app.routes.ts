@@ -27,6 +27,11 @@ export const routes: Routes = [
           import('./features/manager/users/user-form.component').then((m) => m.UserFormComponent),
       },
       {
+        path: 'users/by-name/:name',
+        loadComponent: () =>
+          import('./features/manager/users/user-detail.component').then((m) => m.UserDetailComponent),
+      },
+      {
         path: 'users/:id',
         loadComponent: () =>
           import('./features/manager/users/user-detail.component').then((m) => m.UserDetailComponent),
@@ -68,6 +73,13 @@ export const routes: Routes = [
         path: 'users/new',
         loadComponent: () =>
           import('./features/admin/users/admin-user-form.component').then((m) => m.AdminUserFormComponent),
+      },
+      {
+        path: 'users/by-name/:name',
+        loadComponent: () =>
+          import('./features/admin/users/admin-user-detail.component').then(
+            (m) => m.AdminUserDetailComponent,
+          ),
       },
       {
         path: 'users/:id',

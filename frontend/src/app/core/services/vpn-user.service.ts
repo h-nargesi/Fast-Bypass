@@ -24,6 +24,10 @@ export interface PatchVpnBody {
   notes?: string;
 }
 
+function encName(name: string): string {
+  return encodeURIComponent(name);
+}
+
 @Injectable({ providedIn: 'root' })
 export class VpnUserService {
   private readonly api = inject(ApiClient);
@@ -36,6 +40,10 @@ export class VpnUserService {
     return this.api.get(`/vpn-users/${id}`);
   }
 
+  getByName(name: string): Observable<VpnUserDetail> {
+    return this.api.get(`/vpn-users/by-name/${encName(name)}`);
+  }
+
   create(body: CreateVpnBody): Observable<VpnUserDetail> {
     return this.api.post('/vpn-users', body);
   }
@@ -44,8 +52,16 @@ export class VpnUserService {
     return this.api.patch(`/vpn-users/${id}`, body);
   }
 
+  patchByName(name: string, body: PatchVpnBody): Observable<VpnUserDetail> {
+    return this.api.patch(`/vpn-users/by-name/${encName(name)}`, body);
+  }
+
   delete(id: number): Observable<void> {
     return this.api.delete(`/vpn-users/${id}`);
+  }
+
+  deleteByName(name: string): Observable<void> {
+    return this.api.delete(`/vpn-users/by-name/${encName(name)}`);
   }
 
   assignProfile(
@@ -55,16 +71,27 @@ export class VpnUserService {
     return this.api.post(`/vpn-users/${id}/assign-profile`, body);
   }
 
+  assignProfileByName(
+    name: string,
+    body: { profile_name: string; amount_paid?: number; currency?: string; note?: string },
+  ): Observable<VpnUserDetail> {
+    return this.api.post(`/vpn-users/by-name/${encName(name)}/assign-profile`, body);
+  }
+
   removeProfile(id: number, profileRowId: string): Observable<void> {
     return this.api.delete(`/vpn-users/${id}/profiles/${profileRowId}`);
   }
 
-  connectionBundle(id: number): Observable<VpnUserDetail['connection_bundle']> {
-    return this.api.get(`/vpn-users/${id}/connection-bundle`);
+  removeProfileByName(name: string, profileRowId: string): Observable<void> {
+    return this.api.delete(`/vpn-users/by-name/${encName(name)}/profiles/${profileRowId}`);
   }
 
   downloadOvpn(id: number): Observable<Blob> {
-    return this.api.download(`/vpn-users/${id}/download-ovpn`);
+    return this.api.download(`/vpn-users/${id}/ovpn`);
+  }
+
+  downloadOvpnByName(name: string): Observable<Blob> {
+    return this.api.download(`/vpn-users/by-name/${encName(name)}/ovpn`);
   }
 }
 
@@ -88,6 +115,10 @@ export class AdminVpnService {
     return this.api.get(`/admin/vpn-users/${id}`);
   }
 
+  getByName(name: string): Observable<VpnUserDetail> {
+    return this.api.get(`/admin/vpn-users/by-name/${encName(name)}`);
+  }
+
   create(body: CreateVpnBody & { manager_id?: number }): Observable<VpnUserDetail> {
     return this.api.post('/admin/vpn-users', body);
   }
@@ -96,8 +127,16 @@ export class AdminVpnService {
     return this.api.patch(`/admin/vpn-users/${id}`, body);
   }
 
+  patchByName(name: string, body: PatchVpnBody & { manager_id?: number }): Observable<VpnUserDetail> {
+    return this.api.patch(`/admin/vpn-users/by-name/${encName(name)}`, body);
+  }
+
   delete(id: number): Observable<void> {
     return this.api.delete(`/admin/vpn-users/${id}`);
+  }
+
+  deleteByName(name: string): Observable<void> {
+    return this.api.delete(`/admin/vpn-users/by-name/${encName(name)}`);
   }
 
   assignProfile(
@@ -107,12 +146,27 @@ export class AdminVpnService {
     return this.api.post(`/admin/vpn-users/${id}/assign-profile`, body);
   }
 
+  assignProfileByName(
+    name: string,
+    body: { profile_name: string; amount_paid?: number; currency?: string; note?: string },
+  ): Observable<VpnUserDetail> {
+    return this.api.post(`/admin/vpn-users/by-name/${encName(name)}/assign-profile`, body);
+  }
+
   removeProfile(id: number, profileRowId: string): Observable<void> {
     return this.api.delete(`/admin/vpn-users/${id}/profiles/${profileRowId}`);
   }
 
+  removeProfileByName(name: string, profileRowId: string): Observable<void> {
+    return this.api.delete(`/admin/vpn-users/by-name/${encName(name)}/profiles/${profileRowId}`);
+  }
+
   downloadOvpn(id: number): Observable<Blob> {
-    return this.api.download(`/admin/vpn-users/${id}/download-ovpn`);
+    return this.api.download(`/admin/vpn-users/${id}/ovpn`);
+  }
+
+  downloadOvpnByName(name: string): Observable<Blob> {
+    return this.api.download(`/admin/vpn-users/by-name/${encName(name)}/ovpn`);
   }
 }
 

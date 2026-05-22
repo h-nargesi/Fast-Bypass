@@ -72,7 +72,7 @@ export interface ConnectionBundle {
 }
 
 export interface VpnUserDetail {
-  id: number;
+  id?: number | null;
   mikrotik_name: string;
   shared_users: number;
   disabled: boolean;

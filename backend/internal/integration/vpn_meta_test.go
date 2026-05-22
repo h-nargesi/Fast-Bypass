@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"testing"
@@ -183,6 +184,73 @@ func TestManager_create_withDisabled_setsRouterFlag(t *testing.T) {
 	u, _ := fake.GetUser("ali-newoff")
 	if !u.Disabled {
 		t.Fatal("router user should be created disabled")
+	}
+}
+
+func TestManager_getAndPatchByName_createsMeta(t *testing.T) {
+	application, st, fake := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	_, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+	if err := fake.AddUser("ali-routeronly", "Secret123", "panel:ali", 2, false); err != nil {
+		t.Fatal(err)
+	}
+
+	w := testutil.DoJSON(t, h, http.MethodGet, "/api/v1/vpn-users/by-name/ali-routeronly", nil, mgrToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("get by name: %d %s", w.Code, w.Body.String())
+	}
+	var before map[string]any
+	testutil.DecodeJSON(t, w, &before)
+	if before["id"] != nil {
+		t.Fatalf("expected no panel id before adopt: %+v", before["id"])
+	}
+
+	w = testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/vpn-users/by-name/ali-routeronly", map[string]any{
+		"notes": "adopted via panel",
+	}, mgrToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("patch by name: %d %s", w.Code, w.Body.String())
+	}
+	var after map[string]any
+	testutil.DecodeJSON(t, w, &after)
+	idF, ok := after["id"].(float64)
+	if !ok || idF < 1 {
+		t.Fatalf("expected panel id after adopt: %+v", after["id"])
+	}
+	if after["notes"] != "adopted via panel" {
+		t.Fatalf("notes: %+v", after["notes"])
+	}
+	meta, err := st.FindVPNMetaByName(context.Background(), "ali-routeronly")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.ID != int64(idF) {
+		t.Fatalf("meta id %d vs response %v", meta.ID, idF)
+	}
+}
+
+func TestAdmin_patchByName_createsMetaForOrphan(t *testing.T) {
+	application, st, fake := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	if err := fake.AddUser("orphan-only", "Secret123", "", 1, false); err != nil {
+		t.Fatal(err)
+	}
+
+	w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/vpn-users/by-name/orphan-only", map[string]any{
+		"contact_info": "tg @x",
+	}, adminToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("admin patch by name: %d %s", w.Code, w.Body.String())
+	}
+	var body map[string]any
+	testutil.DecodeJSON(t, w, &body)
+	if body["contact_info"] != "tg @x" {
+		t.Fatalf("contact_info: %+v", body["contact_info"])
+	}
+	if _, err := st.FindVPNMetaByName(context.Background(), "orphan-only"); err != nil {
+		t.Fatalf("meta not created: %v", err)
 	}
 }
 

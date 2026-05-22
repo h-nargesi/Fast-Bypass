@@ -44,6 +44,7 @@ import { ManagerRow } from '../../../core/models';
             <th>نام</th>
             <th>مدیر</th>
             <th>فعال</th>
+            <th>تعداد اتصالات همزمان</th>
             <th>پروفایل</th>
             <th>comment</th>
             <th></th>
@@ -69,13 +70,14 @@ import { ManagerRow } from '../../../core/models';
                   {{ u.disabled ? 'غیرفعال' : 'فعال' }}
                 </span>
               </td>
+              <td>{{ u.shared_users }}</td>
               <td><app-profile-state-chip [state]="stateOf(u)" /></td>
               <td dir="ltr" class="mono">{{ u.mikrotik_comment || '—' }}</td>
               <td>
                 @if (u.id) {
                   <a [routerLink]="['/admin/users', u.id]">ویرایش</a>
                 } @else {
-                  —
+                  <a [routerLink]="['/admin/users/by-name', u.mikrotik_name]">ویرایش</a>
                 }
               </td>
             </tr>
