@@ -22,6 +22,19 @@ func TestValidPanel(t *testing.T) {
 	}
 }
 
+func TestGenerateVPN(t *testing.T) {
+	pw, err := GenerateVPN()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pw) != 8 {
+		t.Fatalf("GenerateVPN() length = %d, want 8", len(pw))
+	}
+	if !ValidVPN(pw) {
+		t.Fatalf("GenerateVPN() = %q not valid", pw)
+	}
+}
+
 func TestHashAndCheck(t *testing.T) {
 	hash, err := Hash("TestPass1")
 	if err != nil {

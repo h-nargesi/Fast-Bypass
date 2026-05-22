@@ -26,7 +26,11 @@ import { environment } from '../../../../environments/environment';
         </div>
         <p class="hint">نام نهایی در روتر: <code dir="ltr">{{ fullName() }}</code></p>
       </fieldset>
-      <label>رمز VPN <input type="password" [(ngModel)]="password" name="password" required /></label>
+      <label>
+        رمز VPN
+        <input type="password" [(ngModel)]="password" name="password" />
+      </label>
+      <p class="hint">خالی بگذارید تا سرور رمز تصادفی بسازد.</p>
       <label>اتصال همزمان <input type="number" min="1" [(ngModel)]="sharedUsers" name="shared" /></label>
       <label class="check">
         <input type="checkbox" [(ngModel)]="routerEnabled" name="ren" />
@@ -108,7 +112,7 @@ export class UserFormComponent implements OnInit {
     this.error.set('');
     const body = {
       local_name: this.localName.trim(),
-      password: this.password,
+      password: this.password.trim() || undefined,
       shared_users: this.sharedUsers,
       disabled: !this.routerEnabled,
       contact_info: this.contactInfo || undefined,

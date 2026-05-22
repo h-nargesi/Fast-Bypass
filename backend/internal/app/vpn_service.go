@@ -143,6 +143,17 @@ func (a *App) fullName(prefix, local string) string {
 	return prefix + local
 }
 
+func resolveVPNPassword(pw string) (string, error) {
+	pw = strings.TrimSpace(pw)
+	if pw == "" {
+		return password.GenerateVPN()
+	}
+	if !password.ValidVPN(pw) {
+		return "", fmt.Errorf("invalid password")
+	}
+	return pw, nil
+}
+
 func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createVPNReq) (map[string]any, error) {
 	reg, err := a.Registry(ctx)
 	if err != nil {
@@ -152,8 +163,9 @@ func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createV
 	if len(req.LocalName) > a.Cfg.UsernameLocalMaxLen {
 		return nil, fmt.Errorf("local name too long")
 	}
-	if !password.ValidVPN(req.Password) {
-		return nil, fmt.Errorf("invalid password")
+	pass, err := resolveVPNPassword(req.Password)
+	if err != nil {
+		return nil, err
 	}
 	if req.SharedUsers < 1 || req.SharedUsers > a.Cfg.SharedUsersMax {
 		return nil, fmt.Errorf("invalid shared_users")
@@ -174,7 +186,7 @@ func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createV
 		return nil, errQuotaExceeded
 	}
 
-	if err := a.MT.AddUser(name, req.Password, comment, req.SharedUsers, vpnUserDisabled(req.Disabled)); err != nil {
+	if err := a.MT.AddUser(name, pass, comment, req.SharedUsers, vpnUserDisabled(req.Disabled)); err != nil {
 		if errors.Is(err, mikrotik.ErrNameTaken) {
 			return nil, errNameTaken
 		}
@@ -219,13 +231,14 @@ func (a *App) createOrphanVPNUser(ctx context.Context, req createVPNReq) (map[st
 	if name == "" || len(name) > 32 {
 		return nil, fmt.Errorf("invalid name")
 	}
-	if !password.ValidVPN(req.Password) {
-		return nil, fmt.Errorf("invalid password")
+	pass, err := resolveVPNPassword(req.Password)
+	if err != nil {
+		return nil, err
 	}
 	if req.SharedUsers < 1 || req.SharedUsers > a.Cfg.SharedUsersMax {
 		return nil, fmt.Errorf("invalid shared_users")
 	}
-	if err := a.MT.AddUser(name, req.Password, "", req.SharedUsers, vpnUserDisabled(req.Disabled)); err != nil {
+	if err := a.MT.AddUser(name, pass, "", req.SharedUsers, vpnUserDisabled(req.Disabled)); err != nil {
 		if errors.Is(err, mikrotik.ErrNameTaken) {
 			return nil, errNameTaken
 		}
@@ -295,8 +308,13 @@ func (a *App) patchVPNUser(ctx context.Context, reg owner.Registry, meta *store.
 		return nil, err
 	}
 	ownerID := reg.Resolve(u.Name, u.Comment)
-	if req.Password != nil && !password.ValidVPN(*req.Password) {
-		return nil, fmt.Errorf("invalid password")
+	var passPtr *string
+	if req.Password != nil {
+		pass, err := resolveVPNPassword(*req.Password)
+		if err != nil {
+			return nil, err
+		}
+		passPtr = &pass
 	}
 	comment := u.Comment
 	if ownerID != 0 {
@@ -340,7 +358,7 @@ func (a *App) patchVPNUser(ctx context.Context, reg owner.Registry, meta *store.
 		}
 		mid = syncManagerID
 	}
-	if err := a.MT.SetUser(u.Name, req.Password, req.SharedUsers, comment, req.Disabled); err != nil {
+	if err := a.MT.SetUser(u.Name, passPtr, req.SharedUsers, comment, req.Disabled); err != nil {
 		return nil, err
 	}
 	if err := a.Store.UpdateVPNMeta(ctx, meta.ID, req.ContactInfo, req.Notes, mid); err != nil {

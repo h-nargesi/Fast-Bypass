@@ -5,7 +5,7 @@ import { AdminVpnListItem, ManagerRow, RenewalItem, RenewalsResponse, VpnListIte
 
 export interface CreateVpnBody {
   local_name: string;
-  password: string;
+  password?: string;
   shared_users: number;
   disabled?: boolean;
   contact_info?: string;
