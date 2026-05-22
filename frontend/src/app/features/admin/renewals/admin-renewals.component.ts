@@ -71,7 +71,7 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
                 <td>{{ r.is_settled ? '✓' : '✗' }}</td>
                 <td>
                   @if (!r.is_settled && data()?.can_settle) {
-                    <button type="button" class="link" (click)="settle(r)">تا اینجا</button>
+                    <button type="button" class="link" (click)="settle(r)">تسویه تا اینجا</button>
                   } @else {
                       —
                     }

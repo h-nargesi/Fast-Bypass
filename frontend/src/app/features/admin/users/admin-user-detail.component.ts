@@ -54,14 +54,11 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
       <section class="card">
         <h3>ویرایش</h3>
         <form (ngSubmit)="saveEdit()">
-          <label>رمز جدید VPN <input type="password" [(ngModel)]="editPassword" name="pw" /></label>
-          <label>اتصال همزمان <input type="number" min="1" [(ngModel)]="editShared" name="su" /></label>
-          <label>اطلاعات تماس <input [(ngModel)]="editContactInfo" name="cn" /></label>
-          <label>یادداشت <textarea [(ngModel)]="editNotes" name="nt" rows="2"></textarea></label>
-          <label class="check">
-            <input type="checkbox" [(ngModel)]="routerEnabled" name="ren" />
-            فعال در روتر (User Manager)
-          </label>
+          <p><label>رمز جدید VPN <input type="password" [(ngModel)]="editPassword" name="pw" /></label></p>
+          <p><label>اتصال همزمان <input type="number" min="1" [(ngModel)]="editShared" name="su" /></label></p>
+          <p><label>اطلاعات تماس <input [(ngModel)]="editContactInfo" name="cn" /></label></p>
+          <p><label>یادداشت <textarea [(ngModel)]="editNotes" name="nt" rows="2"></textarea></label></p>
+          <p><label class="check"><input type="checkbox" [(ngModel)]="routerEnabled" name="ren" /> فعال</label></p>
           @if (u.manager_id && u.owner_mismatch) {
             <p class="hint">
               برای هم‌خوان‌سازی DB با مالک روتر:
@@ -74,7 +71,7 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
       <section class="card">
         <h3>تمدید / انتساب پروفایل</h3>
         <form (ngSubmit)="assign()">
-          <label>پروفایل <input [(ngModel)]="assignProfile" name="prof" /></label>
+          <p class="profile-name">پروفایل: <code dir="ltr">{{ defaultProfile }}</code></p>
           <label>مبلغ (اختیاری) <input type="number" [(ngModel)]="assignAmount" name="amt" /></label>
           <label>یادداشت <input [(ngModel)]="assignNote" name="an" /></label>
           <button type="submit" class="btn primary">تمدید</button>
@@ -152,6 +149,28 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
       align-items: center;
       gap: 0.5rem;
     }
+    .edit-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .edit-group .card h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+    }
+    .edit-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .profile-name {
+      margin: 0 0 0.75rem;
+      color: #444;
+    }
+    .profile-name code {
+      background: #f5f5f5;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
   `,
 })
 export class AdminUserDetailComponent implements OnInit {
@@ -161,6 +180,7 @@ export class AdminUserDetailComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   readonly msg = UI_MESSAGES;
+  readonly defaultProfile = environment.defaultProfile;
   readonly user = signal<VpnUserDetail | null>(null);
   readonly error = signal('');
   readonly saving = signal(false);
@@ -171,7 +191,6 @@ export class AdminUserDetailComponent implements OnInit {
   editContactInfo = '';
   editNotes = '';
   routerEnabled = true;
-  assignProfile = environment.defaultProfile;
   assignAmount: number | null = null;
   assignNote = '';
 
@@ -250,7 +269,7 @@ export class AdminUserDetailComponent implements OnInit {
     const u = this.user();
     if (!u) return;
     this.vpn.assignProfile(u.id, {
-      profile_name: this.assignProfile,
+      profile_name: this.defaultProfile,
       amount_paid: this.assignAmount ?? undefined,
       currency: this.assignAmount != null ? 'IRR' : undefined,
       note: this.assignNote || undefined,

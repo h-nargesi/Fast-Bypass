@@ -129,12 +129,18 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
       font-size: 0.85rem;
       color: #1565c0;
     }
+    .preview {
+      margin-top: 15pt;
+    }
     .preview pre {
       background: #f5f5f5;
       padding: 0.75rem;
       border-radius: 6px;
       white-space: pre-wrap;
       font-size: 0.82rem;
+      direction: ltr;
+      text-align: left;
+      unicode-bidi: plaintext;
     }
     .btn {
       padding: 0.4rem 0.9rem;

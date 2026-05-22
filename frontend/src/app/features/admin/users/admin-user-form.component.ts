@@ -47,7 +47,7 @@ import { environment } from '../../../../environments/environment';
       <label>اتصال همزمان <input type="number" min="1" [(ngModel)]="sharedUsers" name="shared" /></label>
       <label class="check">
         <input type="checkbox" [(ngModel)]="routerEnabled" name="ren" />
-        فعال در روتر (User Manager)
+        فعال
       </label>
       <label>اطلاعات تماس <input [(ngModel)]="contactInfo" name="cinfo" /></label>
       <label>یادداشت <textarea [(ngModel)]="notes" name="notes" rows="2"></textarea></label>

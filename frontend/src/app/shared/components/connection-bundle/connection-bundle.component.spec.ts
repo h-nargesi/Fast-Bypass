@@ -35,6 +35,7 @@ describe('ConnectionBundleComponent (کارت اتصال مشتری)', () => {
   });
 
   it('preview text includes username in LTR block', () => {
+    const preview = fixture.nativeElement.querySelector('.preview') as HTMLDetailsElement;
     const pre = fixture.nativeElement.querySelector('pre') as HTMLPreElement;
     expect(pre.getAttribute('dir')).toBe('ltr');
     expect(pre.textContent).toContain('ali-test');
