@@ -1,5 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 import { UI_MESSAGES } from './core/i18n/messages';
 import { AuthService } from './core/auth/auth.service';
 import { ToastComponent } from './shared/components/toast/toast.component';
@@ -103,7 +105,16 @@ export class App {
   readonly title = UI_MESSAGES.appTitle;
   readonly msg = UI_MESSAGES;
 
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map(() => this.router.url),
+      startWith(this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
+
   readonly showNav = computed(
-    () => this.auth.loggedIn() && !this.router.url.startsWith('/login'),
+    () => this.auth.loggedIn() && !this.currentUrl().startsWith('/login'),
   );
 }

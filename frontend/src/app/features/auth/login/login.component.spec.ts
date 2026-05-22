@@ -38,17 +38,50 @@ describe('LoginComponent', () => {
     expect(fixture.nativeElement.querySelector('input[name="password"]')).toBeTruthy();
   });
 
-  it('submits credentials to /auth/login', async () => {
+  it('submits credentials to /auth/login and redirects admin to /admin', async () => {
     const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
     fixture.componentInstance.username = 'admin';
     fixture.componentInstance.password = 'admin';
     fixture.componentInstance.submit();
 
     const req = http.expectOne('/api/v1/auth/login');
+    expect(req.request.body).toEqual({ username: 'admin', password: 'admin' });
     req.flush({ access_token: 'a', refresh_token: 'r', role: 'admin' });
     await Promise.resolve();
 
     expect(storage.getRole()).toBe('admin');
+    expect(storage.isLoggedIn()).toBe(true);
     expect(navigate).toHaveBeenCalledWith(['/admin']);
+  });
+
+  it('redirects manager to home after successful login', async () => {
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    fixture.componentInstance.username = 'ali';
+    fixture.componentInstance.password = 'pass';
+    fixture.componentInstance.submit();
+
+    http
+      .expectOne('/api/v1/auth/login')
+      .flush({ access_token: 'a', refresh_token: 'r', role: 'manager' });
+    await Promise.resolve();
+
+    expect(storage.getRole()).toBe('manager');
+    expect(navigate).toHaveBeenCalledWith(['/']);
+  });
+
+  it('does not navigate when login fails', async () => {
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    fixture.componentInstance.username = 'bad';
+    fixture.componentInstance.password = 'wrong';
+    fixture.componentInstance.submit();
+
+    http.expectOne('/api/v1/auth/login').flush(
+      { code: 'UNAUTHORIZED', message: 'نام کاربری یا رمز اشتباه است' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    await Promise.resolve();
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(storage.isLoggedIn()).toBe(false);
   });
 });
