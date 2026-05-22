@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"fast-bypass/internal/auth"
+	"fast-bypass/internal/httpx"
 	"fast-bypass/internal/mikrotik"
 	"fast-bypass/internal/owner"
 	"fast-bypass/internal/password"
@@ -83,9 +85,10 @@ func (a *App) buildVPNDetail(ctx context.Context, reg owner.Registry, meta *stor
 	acts, _ := a.Store.ListActivationsByMetaID(ctx, meta.ID)
 	mid, dn, un, sl, mismatch := a.enrichOwner(ctx, reg, u.Name, u.Comment)
 	out := map[string]any{
-		"id": meta.ID, "mikrotik_name": u.Name, "local_name": meta.LocalName,
+		"id": meta.ID, "mikrotik_name": u.Name,
 		"shared_users": u.SharedUsers,
-		"contact_phone": nullStrVal(meta.ContactPhone), "contact_note": nullStrVal(meta.ContactNote),
+		"disabled": u.Disabled,
+		"contact_info": nullStrVal(meta.ContactInfo),
 		"notes": nullStrVal(meta.Notes),
 		"profiles": profileDTOs(profs), "activations": activationDTOs(acts),
 		"connection_bundle": a.connectionBundle(u),
@@ -171,7 +174,7 @@ func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createV
 		return nil, errQuotaExceeded
 	}
 
-	if err := a.MT.AddUser(name, req.Password, comment, req.SharedUsers); err != nil {
+	if err := a.MT.AddUser(name, req.Password, comment, req.SharedUsers, vpnUserDisabled(req.Disabled)); err != nil {
 		if errors.Is(err, mikrotik.ErrNameTaken) {
 			return nil, errNameTaken
 		}
@@ -181,13 +184,9 @@ func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createV
 	mid := mgr.ID
 	meta := &store.VPNUserMeta{
 		MikrotikName: name, ManagerID: sql.NullInt64{Int64: mid, Valid: true},
-		LocalName: req.LocalName,
 	}
-	if req.ContactPhone != nil {
-		meta.ContactPhone = sql.NullString{String: *req.ContactPhone, Valid: true}
-	}
-	if req.ContactNote != nil {
-		meta.ContactNote = sql.NullString{String: *req.ContactNote, Valid: true}
+	if req.ContactInfo != nil {
+		meta.ContactInfo = sql.NullString{String: *req.ContactInfo, Valid: true}
 	}
 	if req.Notes != nil {
 		meta.Notes = sql.NullString{String: *req.Notes, Valid: true}
@@ -209,23 +208,199 @@ func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createV
 	}
 
 	return map[string]any{
-		"id": meta.ID, "mikrotik_name": name, "local_name": req.LocalName,
-		"shared_users": req.SharedUsers, "profiles": profileDTOs(profs),
+		"id": meta.ID, "mikrotik_name": name,
+		"shared_users": req.SharedUsers, "disabled": vpnUserDisabled(req.Disabled),
+		"profiles": profileDTOs(profs),
 	}, nil
 }
 
+func (a *App) createOrphanVPNUser(ctx context.Context, req createVPNReq) (map[string]any, error) {
+	name := strings.TrimSpace(req.LocalName)
+	if name == "" || len(name) > 32 {
+		return nil, fmt.Errorf("invalid name")
+	}
+	if !password.ValidVPN(req.Password) {
+		return nil, fmt.Errorf("invalid password")
+	}
+	if req.SharedUsers < 1 || req.SharedUsers > a.Cfg.SharedUsersMax {
+		return nil, fmt.Errorf("invalid shared_users")
+	}
+	if err := a.MT.AddUser(name, req.Password, "", req.SharedUsers, vpnUserDisabled(req.Disabled)); err != nil {
+		if errors.Is(err, mikrotik.ErrNameTaken) {
+			return nil, errNameTaken
+		}
+		return nil, err
+	}
+	meta := &store.VPNUserMeta{MikrotikName: name}
+	if req.ContactInfo != nil {
+		meta.ContactInfo = sql.NullString{String: *req.ContactInfo, Valid: true}
+	}
+	if req.Notes != nil {
+		meta.Notes = sql.NullString{String: *req.Notes, Valid: true}
+	}
+	if err := a.Store.CreateVPNMeta(ctx, meta); err != nil {
+		_ = a.MT.RemoveUser(name)
+		return nil, err
+	}
+	assign := req.AssignProfile == nil || *req.AssignProfile
+	profile := a.Cfg.DefaultProfile
+	if req.ProfileName != nil && *req.ProfileName != "" {
+		profile = *req.ProfileName
+	}
+	var profs []mikrotik.UserProfile
+	if assign {
+		if err := a.MT.AddUserProfile(name, profile); err != nil {
+			_ = a.MT.RemoveUser(name)
+			_ = a.Store.DeleteVPNMeta(ctx, meta.ID)
+			return nil, err
+		}
+		profs, _ = a.MT.ListUserProfiles(name)
+		_ = a.recordActivation(ctx, meta.ID, profile, req.SharedUsers, req.AmountPaid, req.Currency, nil, profs)
+	}
+	return map[string]any{
+		"id": meta.ID, "mikrotik_name": name,
+		"shared_users": req.SharedUsers, "disabled": vpnUserDisabled(req.Disabled),
+		"profiles": profileDTOs(profs),
+	}, nil
+}
+
+func vpnUserDisabled(p *bool) bool {
+	return p != nil && *p
+}
+
 var (
-	errQuotaExceeded = errors.New("quota exceeded")
-	errNameTaken     = errors.New("name taken")
-	errNotOwner      = errors.New("not owner")
+	errQuotaExceeded   = errors.New("quota exceeded")
+	errNameTaken       = errors.New("name taken")
+	errNotOwner        = errors.New("not owner")
+	errOrphanNoOwner   = errors.New("orphan no owner")
+	errOwnerDBMismatch = errors.New("owner db mismatch")
 )
 
+type patchVPNReq struct {
+	Password    *string `json:"password"`
+	SharedUsers *int    `json:"shared_users"`
+	Disabled    *bool   `json:"disabled"`
+	ContactInfo *string `json:"contact_info"`
+	Notes       *string `json:"notes"`
+}
+
+type adminPatchVPNReq struct {
+	patchVPNReq
+	ManagerID *int64 `json:"manager_id"`
+}
+
+func (a *App) patchVPNUser(ctx context.Context, reg owner.Registry, meta *store.VPNUserMeta, req patchVPNReq, syncManagerID *int64, includeComment bool) (map[string]any, error) {
+	u, err := a.MT.GetUser(meta.MikrotikName)
+	if err != nil {
+		return nil, err
+	}
+	ownerID := reg.Resolve(u.Name, u.Comment)
+	if req.Password != nil && !password.ValidVPN(*req.Password) {
+		return nil, fmt.Errorf("invalid password")
+	}
+	comment := u.Comment
+	if ownerID != 0 {
+		mgr, err := a.Store.FindManagerByID(ctx, ownerID)
+		if err != nil {
+			return nil, err
+		}
+		comment = reg.PanelComment(owner.ManagerInfo{ID: mgr.ID, Slug: mgr.Slug})
+	}
+	if req.SharedUsers != nil {
+		if ownerID == 0 {
+			return nil, errOrphanNoOwner
+		}
+		mgr, err := a.Store.FindManagerByID(ctx, ownerID)
+		if err != nil {
+			return nil, err
+		}
+		used, err := a.managerUsedQuota(ctx, ownerID)
+		if err != nil {
+			return nil, err
+		}
+		profs, _ := a.MT.ListUserProfiles(u.Name)
+		active := false
+		for _, p := range profs {
+			if quota.ProfileActive(p, a.Now()) {
+				active = true
+				break
+			}
+		}
+		if active && !quota.CheckIncrease(used, mgr.Quota, u.SharedUsers, *req.SharedUsers) {
+			return nil, errQuotaExceeded
+		}
+	}
+	var mid *int64
+	if syncManagerID != nil {
+		if ownerID == 0 {
+			return nil, errOrphanNoOwner
+		}
+		if *syncManagerID != ownerID {
+			return nil, errOwnerDBMismatch
+		}
+		mid = syncManagerID
+	}
+	if err := a.MT.SetUser(u.Name, req.Password, req.SharedUsers, comment, req.Disabled); err != nil {
+		return nil, err
+	}
+	if err := a.Store.UpdateVPNMeta(ctx, meta.ID, req.ContactInfo, req.Notes, mid); err != nil {
+		return nil, err
+	}
+	meta, err = a.Store.FindVPNMetaByID(ctx, meta.ID)
+	if err != nil {
+		return nil, err
+	}
+	return a.buildVPNDetail(ctx, reg, meta, includeComment)
+}
+
+func (a *App) deleteVPNUser(ctx context.Context, meta *store.VPNUserMeta) error {
+	_ = a.MT.RemoveUser(meta.MikrotikName)
+	return a.Store.DeleteVPNMeta(ctx, meta.ID)
+}
+
+func (a *App) assignVPNProfile(ctx context.Context, reg owner.Registry, meta *store.VPNUserMeta, req assignProfileReq, includeComment bool) (map[string]any, error) {
+	u, err := a.MT.GetUser(meta.MikrotikName)
+	if err != nil {
+		return nil, err
+	}
+	if reg.Resolve(u.Name, u.Comment) == 0 {
+		return nil, errOrphanNoOwner
+	}
+	if err := a.MT.AddUserProfile(u.Name, req.ProfileName); err != nil {
+		return nil, err
+	}
+	profs, _ := a.MT.ListUserProfiles(u.Name)
+	_ = a.recordActivation(ctx, meta.ID, req.ProfileName, u.SharedUsers, req.AmountPaid, req.Currency, req.Note, profs)
+	return a.buildVPNDetail(ctx, reg, meta, includeComment)
+}
+
+func (a *App) removeVPNProfile(meta *store.VPNUserMeta, profileRowID string) error {
+	return a.MT.RemoveUserProfile(profileRowID)
+}
+
+func (a *App) writeVPNPatchError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errQuotaExceeded):
+		httpx.WriteError(w, http.StatusConflict, "QUOTA_EXCEEDED", "سقف اتصال همزمان پر است")
+	case errors.Is(err, errOrphanNoOwner):
+		httpx.WriteError(w, http.StatusForbidden, "ORPHAN_NO_OWNER", "کاربر بدون مدیر — ابتدا مالک را در روتر مشخص کنید")
+	case errors.Is(err, errOwnerDBMismatch):
+		httpx.WriteError(w, http.StatusConflict, "OWNER_MISMATCH", "manager_id با مالک واقعی روتر هم‌خوان نیست")
+	default:
+		if err != nil && err.Error() == "invalid password" {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "رمز VPN نامعتبر")
+			return
+		}
+		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
+	}
+}
+
 type createVPNReq struct {
-	LocalName     string   `json:"local_name"`
+	LocalName     string   `json:"local_name"` // suffix with manager; full mikrotik name when orphan (admin)
 	Password      string   `json:"password"`
 	SharedUsers   int      `json:"shared_users"`
-	ContactPhone  *string  `json:"contact_phone"`
-	ContactNote   *string  `json:"contact_note"`
+	Disabled      *bool    `json:"disabled"` // true = غیرفعال در User Manager روتر
+	ContactInfo   *string  `json:"contact_info"`
 	Notes         *string  `json:"notes"`
 	AssignProfile *bool    `json:"assign_profile"`
 	ProfileName   *string  `json:"profile_name"`

@@ -8,7 +8,8 @@
 |------|-----|------|
 | `name` | MikroTik | قرارداد نوشتن برای مدیر؛ شناسه ورود VPN |
 | `comment` | MikroTik | برچسب سیستمی پنل: `panel:{slug}` — **مدیر نمی‌بیند** |
-| `notes` | SQLite (`vpn_user_meta`) | توضیحات کسب‌وکار — **مدیر می‌بیند و ویرایش می‌کند** |
+| `notes` | SQLite (`vpn_user_meta`) | یادداشت — **مدیر می‌بیند و ویرایش می‌کند** |
+| `contact_info` | SQLite (`vpn_user_meta`) | اطلاعات تماس — اختیاری |
 
 یادداشت مشتری (مثلاً «مشتری فروشگاه») فقط در `notes` پنل است؛ **نباید** در `comment` روتر نوشته شود.
 
@@ -302,8 +303,9 @@ used_quota = SUM(shared-users) برای هر vpn_user متعلق به مدیر �
 |-----|--------|
 | `/users/new` | قبل از textbox «نام کاربر» (بخش محلی): برچسب ثابت **`name_prefix`** (مثلاً `ali-`) + فیلد فقط برای `local_name` |
 | پیش‌نمایش زنده | زیر فیلد: «نام نهایی در روتر: `ali-` + `reza01` = **`ali-reza01`**» |
-| `/users/:id` | `mikrotik_name` کامل نمایش داده شود (غیرقابل ویرایش)؛ `local_name` در صورت ویرایش تماس/رمز جدا |
-| لیست `/users` | ستون «نام» = `local_name` یا `mikrotik_name`؛ tooltip/header: «پیشوند شما: ali-» |
+| `/users/:id` | `mikrotik_name` کامل نمایش داده شود (غیرقابل ویرایش) |
+| لیست `/users` | ستون «نام» = `mikrotik_name` |
+| `/admin/users/new` | انتخاب مدیر **اختیاری** («بدون مدیر» = نام کامل روتر) |
 
 داده `name_prefix` از `GET /me` (یا claim لاگین) — یک‌بار cache در سرویس پروفایل Angular.
 
@@ -463,7 +465,7 @@ orphan ⟺
 | password VPN | حداقل ۸ کاراکتر؛ حروف و عدد |
 | shared-users | عدد صحیح ۱–۲۰ (سقف قابل env) |
 | amount_paid | اختیاری؛ اگر ارسال شد: `>= 0`؛ حداکثر ۲ رقم اعشار |
-| contact_phone | اختیاری؛ فرمت loose (۱۰–۱۵ رقم) |
+| contact_info | اختیاری؛ متن آزاد |
 
 ---
 

@@ -51,8 +51,69 @@ func (s *Store) migrate() error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(string(b))
-	return err
+	if _, err = s.db.Exec(string(b)); err != nil {
+		return err
+	}
+	return s.migrateVPNMetaContactInfo()
+}
+
+// migrateVPNMetaContactInfo drops legacy local_name/contact_phone and renames contact_note → contact_info.
+func (s *Store) migrateVPNMetaContactInfo() error {
+	has, err := s.tableHasColumn("vpn_user_meta", "local_name")
+	if err != nil {
+		return err
+	}
+	if !has {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	stmts := []string{
+		`CREATE TABLE vpn_user_meta_new (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			mikrotik_name TEXT NOT NULL UNIQUE,
+			manager_id INTEGER REFERENCES managers(id) ON DELETE SET NULL,
+			contact_info TEXT,
+			notes TEXT,
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+		)`,
+		`INSERT INTO vpn_user_meta_new (id, mikrotik_name, manager_id, contact_info, notes, created_at, updated_at)
+		 SELECT id, mikrotik_name, manager_id, contact_note, notes, created_at, updated_at FROM vpn_user_meta`,
+		`DROP TABLE vpn_user_meta`,
+		`ALTER TABLE vpn_user_meta_new RENAME TO vpn_user_meta`,
+		`CREATE INDEX IF NOT EXISTS idx_vpn_user_meta_manager ON vpn_user_meta(manager_id)`,
+	}
+	for _, q := range stmts {
+		if _, err := tx.Exec(q); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) tableHasColumn(table, column string) (bool, error) {
+	rows, err := s.db.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notnull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return false, err
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }
 
 func (s *Store) AdminCount(ctx context.Context) (int, error) {
@@ -223,23 +284,23 @@ func scanManager(row scanner) (*Manager, error) {
 
 func (s *Store) FindVPNMetaByID(ctx context.Context, id int64) (*VPNUserMeta, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, mikrotik_name, manager_id, local_name, contact_phone, contact_note, notes, created_at, updated_at
+		`SELECT id, mikrotik_name, manager_id, contact_info, notes, created_at, updated_at
 		 FROM vpn_user_meta WHERE id = ?`, id)
 	return scanVPNMeta(row)
 }
 
 func (s *Store) FindVPNMetaByName(ctx context.Context, name string) (*VPNUserMeta, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, mikrotik_name, manager_id, local_name, contact_phone, contact_note, notes, created_at, updated_at
+		`SELECT id, mikrotik_name, manager_id, contact_info, notes, created_at, updated_at
 		 FROM vpn_user_meta WHERE mikrotik_name = ?`, name)
 	return scanVPNMeta(row)
 }
 
 func (s *Store) CreateVPNMeta(ctx context.Context, m *VPNUserMeta) error {
 	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO vpn_user_meta (mikrotik_name, manager_id, local_name, contact_phone, contact_note, notes)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		m.MikrotikName, m.ManagerID, m.LocalName, m.ContactPhone, m.ContactNote, m.Notes)
+		`INSERT INTO vpn_user_meta (mikrotik_name, manager_id, contact_info, notes)
+		 VALUES (?, ?, ?, ?)`,
+		m.MikrotikName, m.ManagerID, m.ContactInfo, m.Notes)
 	if err != nil {
 		return err
 	}
@@ -247,16 +308,13 @@ func (s *Store) CreateVPNMeta(ctx context.Context, m *VPNUserMeta) error {
 	return nil
 }
 
-func (s *Store) UpdateVPNMeta(ctx context.Context, id int64, contactPhone, contactNote, notes *string, managerID *int64) error {
+func (s *Store) UpdateVPNMeta(ctx context.Context, id int64, contactInfo, notes *string, managerID *int64) error {
 	cur, err := s.FindVPNMetaByID(ctx, id)
 	if err != nil {
 		return err
 	}
-	if contactPhone != nil {
-		cur.ContactPhone = sql.NullString{String: *contactPhone, Valid: true}
-	}
-	if contactNote != nil {
-		cur.ContactNote = sql.NullString{String: *contactNote, Valid: true}
+	if contactInfo != nil {
+		cur.ContactInfo = sql.NullString{String: *contactInfo, Valid: true}
 	}
 	if notes != nil {
 		cur.Notes = sql.NullString{String: *notes, Valid: true}
@@ -265,8 +323,8 @@ func (s *Store) UpdateVPNMeta(ctx context.Context, id int64, contactPhone, conta
 		cur.ManagerID = sql.NullInt64{Int64: *managerID, Valid: true}
 	}
 	_, err = s.db.ExecContext(ctx,
-		`UPDATE vpn_user_meta SET contact_phone=?, contact_note=?, notes=?, manager_id=?, updated_at=datetime('now') WHERE id=?`,
-		nullStr(cur.ContactPhone), nullStr(cur.ContactNote), nullStr(cur.Notes), nullInt(cur.ManagerID), id)
+		`UPDATE vpn_user_meta SET contact_info=?, notes=?, manager_id=?, updated_at=datetime('now') WHERE id=?`,
+		nullStr(cur.ContactInfo), nullStr(cur.Notes), nullInt(cur.ManagerID), id)
 	return err
 }
 
@@ -278,13 +336,12 @@ func (s *Store) DeleteVPNMeta(ctx context.Context, id int64) error {
 func scanVPNMeta(row scanner) (*VPNUserMeta, error) {
 	var m VPNUserMeta
 	var mgr sql.NullInt64
-	var phone, note, notes sql.NullString
-	if err := row.Scan(&m.ID, &m.MikrotikName, &mgr, &m.LocalName, &phone, &note, &notes, &m.CreatedAt, &m.UpdatedAt); err != nil {
+	var contact, notes sql.NullString
+	if err := row.Scan(&m.ID, &m.MikrotikName, &mgr, &contact, &notes, &m.CreatedAt, &m.UpdatedAt); err != nil {
 		return nil, err
 	}
 	m.ManagerID = mgr
-	m.ContactPhone = phone
-	m.ContactNote = note
+	m.ContactInfo = contact
 	m.Notes = notes
 	return &m, nil
 }
@@ -466,7 +523,7 @@ func renewalWhere(f RenewalFilter) (string, []any) {
 		args = append(args, f.To)
 	}
 	if f.Query != "" {
-		parts = append(parts, "(v.mikrotik_name LIKE ? OR v.local_name LIKE ?)")
+		parts = append(parts, "(v.mikrotik_name LIKE ? OR v.contact_info LIKE ?)")
 		q := "%" + f.Query + "%"
 		args = append(args, q, q)
 	}

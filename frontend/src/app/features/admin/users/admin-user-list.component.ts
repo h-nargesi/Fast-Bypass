@@ -17,7 +17,10 @@ import { ManagerRow } from '../../../core/models';
   template: `
     <div class="toolbar">
       <h2 class="page-title">همه کاربران VPN</h2>
-      <button type="button" class="btn" (click)="load(true)">بروزرسانی</button>
+      <div class="toolbar-actions">
+        <a routerLink="/admin/users/new" class="btn primary">کاربر جدید</a>
+        <button type="button" class="btn" (click)="load(true)">بروزرسانی</button>
+      </div>
     </div>
     <div class="filters card">
       <label>
@@ -40,14 +43,18 @@ import { ManagerRow } from '../../../core/models';
           <tr>
             <th>نام</th>
             <th>مدیر</th>
-            <th>وضعیت</th>
+            <th>فعال</th>
+            <th>پروفایل</th>
             <th>comment</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           @for (u of items(); track u.mikrotik_name) {
-            <tr [class.warn-row]="u.owner_mismatch">
+            <tr
+              [class.warn-row]="u.owner_mismatch && !u.disabled"
+              [class.row-disabled]="u.disabled"
+            >
               <td>{{ u.mikrotik_name }}</td>
               <td>
                 @if (u.manager_display_name) {
@@ -57,11 +64,16 @@ import { ManagerRow } from '../../../core/models';
                   <span class="orphan">{{ msg.orphanLabel }}</span>
                 }
               </td>
+              <td>
+                <span class="router-status" [class.off]="u.disabled">
+                  {{ u.disabled ? 'غیرفعال' : 'فعال' }}
+                </span>
+              </td>
               <td><app-profile-state-chip [state]="stateOf(u)" /></td>
               <td dir="ltr" class="mono">{{ u.mikrotik_comment || '—' }}</td>
               <td>
                 @if (u.id) {
-                  <a [routerLink]="['/admin/users', u.id]">جزئیات</a>
+                  <a [routerLink]="['/admin/users', u.id]">ویرایش</a>
                 } @else {
                   —
                 }
@@ -73,12 +85,20 @@ import { ManagerRow } from '../../../core/models';
     </div>
   `,
   styles: `
+    .toolbar-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
     .orphan {
       color: #666;
       font-size: 0.85rem;
     }
     .warn-row {
       background: #fffde7;
+    }
+    tr.warn-row.row-disabled td {
+      background: #eceff1;
     }
     .warn-tag {
       color: #f57f17;

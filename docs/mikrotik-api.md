@@ -67,8 +67,11 @@ MIKROTIK_PORT=8728
   .id=*ID یا numbers=...
   password=***          # اختیاری
   shared-users=3        # اختیاری
+  disabled=yes|no       # غیرفعال/فعال در User Manager (نه SQLite)
   comment=panel:ali     # همیشه بازنویسی مالک — حتی اگر فقط رمز عوض شده
 ```
+
+در API پنل: `disabled: true` = کاربر در روتر غیرفعال (پرچم `X` در `user print`)؛ UI با چک‌باکس «فعال در روتر» نمایش داده می‌شود.
 
 ### حذف کاربر
 

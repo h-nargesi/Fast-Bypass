@@ -21,7 +21,8 @@ erDiagram
     int id PK
     text mikrotik_name UK
     int manager_id FK
-    text local_name
+    text contact_info
+    text notes
   }
   profile_activations {
     int id PK
@@ -52,12 +53,10 @@ DDL کامل: [db/schema.sql](../db/schema.sql).
 
 | ستون | توضیح |
 |------|--------|
-| `mikrotik_name` | نام کامل در روتر، مثلاً `ali_reza01` |
-| `local_name` | بخش بعد از پیشوند؛ برای نمایش و اعتبارسنجی |
+| `mikrotik_name` | نام کامل در روتر، مثلاً `ali-reza01` |
 | `manager_id` | FK به مدیر؛ از **`resolve_owner(mikrotik_name, comment)`** در روتر — اگر orphan باشد `NULL` یا ناسازگار با روتر (هشدار) |
-| `contact_phone` | اختیاری |
-| `contact_note` | مثلاً تلگرام / ایمیل |
-| `notes` | توضیحات آزاد پنل — **جایگزین `comment` روتر برای مدیر**؛ در MikroTik ذخیره نمی‌شود |
+| `contact_info` | اطلاعات تماس (تلگرام، ایمیل، …) — اختیاری |
+| `notes` | یادداشت آزاد پنل — **جایگزین `comment` روتر برای مدیر**؛ در MikroTik ذخیره نمی‌شود |
 
 ## جدول `profile_activations`
 
@@ -93,11 +92,13 @@ DDL کامل: [db/schema.sql](../db/schema.sql).
 | فرمت | `panel:{slug}` ثابت | متن آزاد |
 | چه کسی می‌بیند | فقط **ادمین** (`mikrotik_comment`) | **مدیر** + ادمین |
 | چه کسی می‌نویسد | سرور پنل (هر write)؛ ادمین در Winbox برای legacy | مدیر در `PATCH /vpn-users/:id` |
-| نقش | مالکیت / import legacy | توضیحات مشتری |
+| نقش | مالکیت / import legacy | یادداشت مشتری |
 
 ## محدودیت نام
 
-- `local_name`: `^[a-z0-9][a-z0-9_-]{2,23}$` (قابل تنظیم با `USERNAME_LOCAL_MAX_LEN`)
+- ایجاد توسط **مدیر**: بدنه `local_name` = بخش بعد از پیشوند؛ سرور `mikrotik_name = name_prefix + local_name`
+- ایجاد **بدون مدیر** (ادمین): `local_name` = نام کامل روتر (حداکثر ۳۲ کاراکتر)
+- الگوی بخش نام: `^[a-z0-9][a-z0-9_-]{2,23}$` (قابل تنظیم با `USERNAME_LOCAL_MAX_LEN`)
 - `slug` + separator + `local_name` ≤ ۳۲ کاراکتر (محدودیت عملی RouterOS/User Manager)
 - یکتا بودن `mikrotik_name` در DB و در روتر
 - `slug` مدیر: هنگام insert/update بررسی همپوشانی پیشوندی (`SLUG_OVERLAPS`)

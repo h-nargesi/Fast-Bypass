@@ -13,7 +13,7 @@ make test-integration
 | پکیج | نوع | محتوا |
 |------|-----|--------|
 | `internal/owner`, `quota`, `password`, `auth`, `mikrotik` | Unit | قوانین مالکیت، quota، رمز، JWT، FakeClient |
-| `internal/store` | Unit | SQLite موقت، مدیر، activation |
+| `internal/store` | Unit | SQLite موقت، مدیر، activation، مایگریشن `contact_info` |
 | `internal/integration` | Integration | HTTP با `httptest`، DB موقت، `FakeClient` |
 
 Integration از `internal/testutil` برای bootstrap ادمین و seed مدیر استفاده می‌کند.
@@ -23,6 +23,7 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | فایل | نقش |
 |------|-----|
 | `internal/integration/api_test.go` | سناریوهای پایه API |
+| `internal/integration/vpn_meta_test.go` | `contact_info` / حذف فیلدهای legacy / ایجاد orphan ادمین |
 | `internal/integration/acceptance_test.go` | نگاشت به چک‌لیست [business-rules.md](business-rules.md) فاز ۱ |
 
 ### پوشش چک‌لیست پذیرش (backend)
@@ -42,6 +43,12 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | `QUOTA_BELOW_USAGE` | — | ✓ acceptance |
 | bootstrap ادمین | ✓ store | ✓ acceptance |
 | orphan / فیلدهای مالک ادمین | — | ✓ acceptance |
+| `contact_info` / بدون `local_name` در پاسخ | ✓ store | ✓ vpn_meta + acceptance |
+| ادمین ایجاد بدون `manager_id` | — | ✓ vpn_meta |
+| مایگریشن DB (`local_name` → حذف) | ✓ store | — |
+| `disabled` کاربر VPN در روتر | ✓ mikrotik + quota | ✓ vpn_meta + vpn_list_disabled |
+| لیست کاربران — فیلد `disabled` / `active_only` | — | ✓ vpn_list_disabled |
+| UI لیست — ستون فعال و `row-disabled` | — | ✓ user-list + admin-user-list spec |
 | `owner_mismatch` | ✓ owner | ✓ acceptance |
 | `NOT_OWNER` | — | ✓ acceptance |
 | `PATCH /me` محدود | — | ✓ acceptance |
@@ -49,6 +56,7 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | snapshot `shared_users` در activation | ✓ store | ✓ acceptance |
 | کش + `?refresh=true` | ✓ mikrotik | ✓ acceptance |
 | حذف کاربر / حذف رزرو | ✓ fake | ✓ acceptance |
+| ادمین: ایجاد / PATCH / DELETE VPN | ✓ fake | ✓ acceptance |
 | `connection_bundle` / `.ovpn` | — | ✓ acceptance |
 | refresh JWT | ✓ auth | ✓ acceptance |
 | تغییر رمز `/me/password` | ✓ password | ✓ acceptance |
@@ -110,7 +118,7 @@ npm run test:ci   # یک‌بار، برای CI
 
 - E2E UI با backend/روتر واقعی (تست backend+روتر در `test-vm` زیر)
 - E2E تمام جریان‌های [user-flows.md](user-flows.md) با مرورگر (Playwright/Cypress)
-- ویرایش `PATCH /admin/vpn-users/:id` — **هنوز پیاده نشده**
+- E2E UI ادمین برای ایجاد/ویرایش/حذف VPN (فرم `/admin/users/new` و جزئیات) — پوشش API در acceptance `TestAdmin_vpnUser_createPatchDelete`
 - لاگ نکردن password — بازبینی دستی / lint
 - timezone `Asia/Tehran` در assert — سرور تست `TZ=UTC`؛ رفتار parse در production با env
 - `SLUG_HAS_USERS` هنگام تغییر slug — نیاز سناریو با کاربر VPN موجود

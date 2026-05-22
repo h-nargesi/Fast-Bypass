@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -40,17 +41,19 @@ func (a *App) HandleAssignProfile(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "profile_name لازم است")
 		return
 	}
-	if err := a.MT.AddUserProfile(u.Name, req.ProfileName); err != nil {
+	out, err := a.assignVPNProfile(ctx, reg, meta, req, false)
+	if err != nil {
 		if err == mikrotik.ErrProfileMissing {
 			httpx.WriteError(w, http.StatusBadRequest, "PROFILE_NOT_FOUND", "پروفایل در روتر تعریف نشده")
+			return
+		}
+		if errors.Is(err, errOrphanNoOwner) {
+			httpx.WriteError(w, http.StatusForbidden, "ORPHAN_NO_OWNER", "کاربر بدون مدیر — ابتدا مالک را در روتر مشخص کنید")
 			return
 		}
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
-	profs, _ := a.MT.ListUserProfiles(u.Name)
-	_ = a.recordActivation(ctx, meta.ID, req.ProfileName, u.SharedUsers, req.AmountPaid, req.Currency, req.Note, profs)
-	out, _ := a.buildVPNDetail(ctx, reg, meta, false)
 	httpx.WriteJSON(w, http.StatusOK, out)
 }
 
@@ -71,8 +74,10 @@ func (a *App) HandleDeleteVPNUser(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
 		return
 	}
-	_ = a.MT.RemoveUser(meta.MikrotikName)
-	_ = a.Store.DeleteVPNMeta(ctx, meta.ID)
+	if err := a.deleteVPNUser(ctx, meta); err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -143,7 +148,7 @@ func (a *App) HandleRemoveProfile(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
 		return
 	}
-	if err := a.MT.RemoveUserProfile(profileRowID); err != nil {
+	if err := a.removeVPNProfile(meta, profileRowID); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "حذف پروفایل ممکن نیست")
 		return
 	}

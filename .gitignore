@@ -1,6 +1,2 @@
 .env
-data/
-backend/data/
-*.db
 /tmp/
-.gocache

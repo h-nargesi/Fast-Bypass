@@ -10,8 +10,6 @@ import (
 
 	"fast-bypass/internal/auth"
 	"fast-bypass/internal/httpx"
-	"fast-bypass/internal/owner"
-	"fast-bypass/internal/password"
 	"fast-bypass/internal/quota"
 	"fast-bypass/internal/store"
 )
@@ -40,6 +38,9 @@ func (a *App) HandleListVPNUsers(w http.ResponseWriter, r *http.Request) {
 		if reg.Resolve(u.Name, u.Comment) != c.ManagerID {
 			continue
 		}
+		if activeOnly && u.Disabled {
+			continue
+		}
 		profs, _ := a.MT.ListUserProfiles(u.Name)
 		if activeOnly {
 			okActive := false
@@ -53,10 +54,12 @@ func (a *App) HandleListVPNUsers(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		}
-		item := map[string]any{"mikrotik_name": u.Name, "shared_users": u.SharedUsers, "profiles": profileDTOs(profs)}
+		item := map[string]any{
+			"mikrotik_name": u.Name, "shared_users": u.SharedUsers,
+			"disabled": u.Disabled, "profiles": profileDTOs(profs),
+		}
 		if meta, err := a.Store.FindVPNMetaByName(ctx, u.Name); err == nil {
 			item["id"] = meta.ID
-			item["local_name"] = meta.LocalName
 		}
 		items = append(items, item)
 	}
@@ -142,14 +145,6 @@ func (a *App) HandleCreateVPNUser(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, out)
 }
 
-type patchVPNReq struct {
-	Password     *string `json:"password"`
-	SharedUsers  *int    `json:"shared_users"`
-	ContactPhone *string `json:"contact_phone"`
-	ContactNote  *string `json:"contact_note"`
-	Notes        *string `json:"notes"`
-}
-
 func (a *App) HandlePatchVPNUser(w http.ResponseWriter, r *http.Request) {
 	c, ok := auth.ClaimsFrom(r.Context())
 	if !ok || c.Role != auth.RoleManager {
@@ -172,34 +167,10 @@ func (a *App) HandlePatchVPNUser(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "ورودی نامعتبر")
 		return
 	}
-	mgr, _ := a.Store.FindManagerByID(ctx, c.ManagerID)
-	comment := reg.PanelComment(owner.ManagerInfo{ID: mgr.ID, Slug: mgr.Slug})
-	if req.Password != nil {
-		if !password.ValidVPN(*req.Password) {
-			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "رمز VPN نامعتبر")
-			return
-		}
-	}
-	if req.SharedUsers != nil {
-		used, _ := a.managerUsedQuota(ctx, c.ManagerID)
-		profs, _ := a.MT.ListUserProfiles(u.Name)
-		active := false
-		for _, p := range profs {
-			if quota.ProfileActive(p, a.Now()) {
-				active = true
-				break
-			}
-		}
-		if active && !quota.CheckIncrease(used, mgr.Quota, u.SharedUsers, *req.SharedUsers) {
-			httpx.WriteError(w, http.StatusConflict, "QUOTA_EXCEEDED", "سقف اتصال همزمان پر است")
-			return
-		}
-	}
-	if err := a.MT.SetUser(u.Name, req.Password, req.SharedUsers, comment); err != nil {
-		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
+	out, err := a.patchVPNUser(ctx, reg, meta, req, nil, false)
+	if err != nil {
+		a.writeVPNPatchError(w, err)
 		return
 	}
-	_ = a.Store.UpdateVPNMeta(ctx, meta.ID, req.ContactPhone, req.ContactNote, req.Notes, nil)
-	out, _ := a.buildVPNDetail(ctx, reg, meta, false)
 	httpx.WriteJSON(w, http.StatusOK, out)
 }

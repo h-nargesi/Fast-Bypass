@@ -34,15 +34,21 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
           <thead>
             <tr>
               <th>نام</th>
+              <th>فعال</th>
               <th>اتصال همزمان</th>
-              <th>وضعیت</th>
+              <th>پروفایل</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             @for (u of items(); track u.mikrotik_name) {
-              <tr>
+              <tr [class.row-disabled]="u.disabled">
                 <td>{{ u.mikrotik_name }}</td>
+                <td>
+                  <span class="router-status" [class.off]="u.disabled">
+                    {{ u.disabled ? 'غیرفعال' : 'فعال' }}
+                  </span>
+                </td>
                 <td>{{ u.shared_users }}</td>
                 <td>
                   <app-profile-state-chip [state]="stateOf(u)" />

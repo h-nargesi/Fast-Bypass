@@ -8,6 +8,7 @@ type User struct {
 	Password    string
 	SharedUsers int
 	Comment     string
+	Disabled    bool
 }
 
 type UserProfile struct {
@@ -22,8 +23,8 @@ type Client interface {
 	Ping() error
 	ListUsers() ([]User, error)
 	GetUser(name string) (*User, error)
-	AddUser(name, password, comment string, sharedUsers int) error
-	SetUser(name string, password *string, sharedUsers *int, comment string) error
+	AddUser(name, password, comment string, sharedUsers int, disabled bool) error
+	SetUser(name string, password *string, sharedUsers *int, comment string, disabled *bool) error
 	RemoveUser(name string) error
 	ListUserProfiles(user string) ([]UserProfile, error)
 	AddUserProfile(user, profile string) error
@@ -85,16 +86,16 @@ func (c *CachedClient) GetUser(name string) (*User, error) {
 	return nil, ErrNotFound
 }
 
-func (c *CachedClient) AddUser(name, password, comment string, sharedUsers int) error {
-	if err := c.inner.AddUser(name, password, comment, sharedUsers); err != nil {
+func (c *CachedClient) AddUser(name, password, comment string, sharedUsers int, disabled bool) error {
+	if err := c.inner.AddUser(name, password, comment, sharedUsers, disabled); err != nil {
 		return err
 	}
 	c.InvalidateCache()
 	return nil
 }
 
-func (c *CachedClient) SetUser(name string, password *string, sharedUsers *int, comment string) error {
-	if err := c.inner.SetUser(name, password, sharedUsers, comment); err != nil {
+func (c *CachedClient) SetUser(name string, password *string, sharedUsers *int, comment string, disabled *bool) error {
+	if err := c.inner.SetUser(name, password, sharedUsers, comment, disabled); err != nil {
 		return err
 	}
 	c.InvalidateCache()

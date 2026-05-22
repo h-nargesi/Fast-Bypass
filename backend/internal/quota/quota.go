@@ -29,7 +29,7 @@ func ProfileActive(p mikrotik.UserProfile, now time.Time) bool {
 func UsedForManager(reg owner.Registry, managerID int64, users []mikrotik.User, profilesFn func(string) ([]mikrotik.UserProfile, error), now time.Time) (int, error) {
 	used := 0
 	for _, u := range users {
-		if reg.Resolve(u.Name, u.Comment) != managerID {
+		if reg.Resolve(u.Name, u.Comment) != managerID || u.Disabled {
 			continue
 		}
 		profs, err := profilesFn(u.Name)

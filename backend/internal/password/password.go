@@ -2,7 +2,7 @@ package password
 
 import (
 	"regexp"
-	// "unicode"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 )

@@ -3,29 +3,46 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client.service';
-import { ProfileService } from '../../../core/auth/auth.service';
-import { ManagerProfile } from '../../../core/models';
-import { VpnUserService } from '../../../core/services/vpn-user.service';
+import { ManagerRow } from '../../../core/models';
+import { AdminService, AdminVpnService } from '../../../core/services/vpn-user.service';
 import { environment } from '../../../../environments/environment';
 
 @Component({
-  selector: 'app-user-form',
+  selector: 'app-admin-user-form',
   standalone: true,
   imports: [FormsModule, RouterLink],
   template: `
-    <h2 class="page-title">کاربر جدید</h2>
+    <a routerLink="/admin/users" class="back">← بازگشت</a>
+    <h2 class="page-title">کاربر VPN جدید</h2>
     @if (error()) {
       <p class="banner err">{{ error() }}</p>
     }
     <form class="card form" (ngSubmit)="submit()">
-      <fieldset>
-        <legend>نام کاربر VPN</legend>
-        <div class="prefix-row">
-          <span class="prefix">{{ prefix() }}</span>
-          <input [(ngModel)]="localName" name="localName" required placeholder="reza01" />
-        </div>
-        <p class="hint">نام نهایی در روتر: <code dir="ltr">{{ fullName() }}</code></p>
-      </fieldset>
+      <label>
+        مدیر
+        <select [(ngModel)]="managerId" name="mgr">
+          <option [ngValue]="null">بدون مدیر</option>
+          @for (m of managers(); track m.id) {
+            <option [ngValue]="m.id">{{ m.display_name }} ({{ m.slug }})</option>
+          }
+        </select>
+      </label>
+      @if (selectedManager(); as mgr) {
+        <fieldset>
+          <legend>نام کاربر VPN</legend>
+          <div class="prefix-row">
+            <span class="prefix">{{ namePrefix(mgr) }}</span>
+            <input [(ngModel)]="localName" name="localName" required placeholder="reza01" />
+          </div>
+          <p class="hint">نام نهایی در روتر: <code dir="ltr">{{ fullName(mgr) }}</code></p>
+        </fieldset>
+      } @else {
+        <label>
+          نام کاربر در روتر
+          <input [(ngModel)]="localName" name="localNameFull" required placeholder="reza01" dir="ltr" />
+        </label>
+        <p class="hint">کاربر بدون مدیر — comment روتر خالی می‌ماند.</p>
+      }
       <label>رمز VPN <input type="password" [(ngModel)]="password" name="password" required /></label>
       <label>اتصال همزمان <input type="number" min="1" [(ngModel)]="sharedUsers" name="shared" /></label>
       <label class="check">
@@ -42,8 +59,8 @@ import { environment } from '../../../../environments/environment';
         <label>مبلغ پرداخت (اختیاری) <input type="number" [(ngModel)]="amountPaid" name="amount" /></label>
       }
       <div class="actions">
-        <button type="submit" class="btn primary" [disabled]="saving()">ذخیره</button>
-        <a routerLink="/users" class="btn">انصراف</a>
+        <button type="submit" class="btn primary" [disabled]="saving() || !localName.trim()">ذخیره</button>
+        <a routerLink="/admin/users" class="btn">انصراف</a>
       </div>
     </form>
   `,
@@ -75,13 +92,17 @@ import { environment } from '../../../../environments/environment';
     }
   `,
 })
-export class UserFormComponent implements OnInit {
-  private readonly profileSvc = inject(ProfileService);
-  private readonly vpn = inject(VpnUserService);
+export class AdminUserFormComponent implements OnInit {
+  private readonly admin = inject(AdminService);
+  private readonly vpn = inject(AdminVpnService);
   private readonly router = inject(Router);
 
   readonly defaultProfile = environment.defaultProfile;
-  readonly prefix = signal('');
+  readonly managers = signal<ManagerRow[]>([]);
+  readonly saving = signal(false);
+  readonly error = signal('');
+
+  managerId: number | null = null;
   localName = '';
   password = '';
   sharedUsers = 1;
@@ -90,23 +111,28 @@ export class UserFormComponent implements OnInit {
   notes = '';
   assignProfile = true;
   amountPaid: number | null = null;
-  readonly saving = signal(false);
-  readonly error = signal('');
 
   ngOnInit(): void {
-    this.profileSvc.getMe().subscribe((me) => {
-      this.prefix.set((me as ManagerProfile).name_prefix ?? '');
-    });
+    this.admin.listManagers().subscribe((r) => this.managers.set(r.items));
   }
 
-  fullName(): string {
-    return `${this.prefix()}${this.localName}`;
+  selectedManager(): ManagerRow | undefined {
+    if (this.managerId == null) return undefined;
+    return this.managers().find((m) => m.id === this.managerId);
+  }
+
+  namePrefix(mgr: ManagerRow): string {
+    return `${mgr.slug}-`;
+  }
+
+  fullName(mgr: ManagerRow): string {
+    return `${this.namePrefix(mgr)}${this.localName}`;
   }
 
   submit(): void {
     this.saving.set(true);
     this.error.set('');
-    const body = {
+    const body: Parameters<AdminVpnService['create']>[0] = {
       local_name: this.localName.trim(),
       password: this.password,
       shared_users: this.sharedUsers,
@@ -118,6 +144,9 @@ export class UserFormComponent implements OnInit {
       amount_paid: this.amountPaid ?? undefined,
       currency: this.amountPaid != null ? 'IRR' : undefined,
     };
+    if (this.managerId != null) {
+      body.manager_id = this.managerId;
+    }
     this.vpn
       .create(body)
       .pipe(
@@ -128,8 +157,9 @@ export class UserFormComponent implements OnInit {
         }),
       )
       .subscribe((res) => {
+        this.saving.set(false);
         if (res?.id) {
-          void this.router.navigate(['/users', res.id]);
+          void this.router.navigate(['/admin/users', res.id]);
         }
       });
   }

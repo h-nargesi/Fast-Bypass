@@ -30,6 +30,25 @@ func TestProfileActive_byEndTime(t *testing.T) {
 	}
 }
 
+func TestUsedForManager_skipsDisabled(t *testing.T) {
+	reg := owner.Registry{Separator: "-", Managers: []owner.ManagerInfo{{ID: 1, Slug: "ali"}}}
+	now := time.Now()
+	users := []mikrotik.User{
+		{Name: "ali-a", Comment: "panel:ali", SharedUsers: 5, Disabled: true},
+		{Name: "ali-b", Comment: "panel:ali", SharedUsers: 2, Disabled: false},
+	}
+	profs := map[string][]mikrotik.UserProfile{
+		"ali-a": {{State: "active", EndTime: now.Add(time.Hour).Format(time.RFC3339)}},
+		"ali-b": {{State: "active", EndTime: now.Add(time.Hour).Format(time.RFC3339)}},
+	}
+	used, err := UsedForManager(reg, 1, users, func(name string) ([]mikrotik.UserProfile, error) {
+		return profs[name], nil
+	}, now)
+	if err != nil || used != 2 {
+		t.Fatalf("used = %d, want 2 (disabled user excluded)", used)
+	}
+}
+
 func TestUsedForManager(t *testing.T) {
 	reg := owner.Registry{
 		Separator: "-",

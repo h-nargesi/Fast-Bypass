@@ -45,8 +45,8 @@ export interface VpnProfile {
 export interface VpnListItem {
   id?: number;
   mikrotik_name: string;
-  local_name?: string;
   shared_users: number;
+  disabled?: boolean;
   profiles: VpnProfile[];
 }
 
@@ -74,10 +74,9 @@ export interface ConnectionBundle {
 export interface VpnUserDetail {
   id: number;
   mikrotik_name: string;
-  local_name: string;
   shared_users: number;
-  contact_phone: string | null;
-  contact_note: string | null;
+  disabled: boolean;
+  contact_info: string | null;
   notes: string | null;
   profiles: VpnProfile[];
   activations: Activation[];

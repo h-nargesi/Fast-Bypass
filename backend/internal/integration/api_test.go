@@ -145,7 +145,7 @@ func TestAdmin_renewals_orphanScope_and_settle(t *testing.T) {
 	}
 
 	// orphan on router only (no DB meta) — renewals orphan scope uses manager_id in DB
-	_ = fake.AddUser("guest01", "Secret123", "", 1)
+	_ = fake.AddUser("guest01", "Secret123", "", 1, false)
 
 	w = testutil.DoJSON(t, h, http.MethodGet, "/api/v1/admin/renewals", nil, adminToken)
 	if w.Code != http.StatusOK {

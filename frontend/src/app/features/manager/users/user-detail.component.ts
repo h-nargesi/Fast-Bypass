@@ -41,9 +41,12 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
         <form (ngSubmit)="saveEdit()">
           <label>رمز جدید VPN <input type="password" [(ngModel)]="editPassword" name="pw" /></label>
           <label>اتصال همزمان <input type="number" min="1" [(ngModel)]="editShared" name="su" /></label>
-          <label>تلفن <input [(ngModel)]="editPhone" name="ph" /></label>
-          <label>یادداشت تماس <input [(ngModel)]="editContactNote" name="cn" /></label>
-          <label>توضیحات <textarea [(ngModel)]="editNotes" name="nt" rows="2"></textarea></label>
+          <label>اطلاعات تماس <input [(ngModel)]="editContactInfo" name="cn" /></label>
+          <label>یادداشت <textarea [(ngModel)]="editNotes" name="nt" rows="2"></textarea></label>
+          <label class="check">
+            <input type="checkbox" [(ngModel)]="routerEnabled" name="ren" />
+            فعال در روتر (User Manager)
+          </label>
           <button type="submit" class="btn primary" [disabled]="saving()">ذخیره</button>
         </form>
       </section>
@@ -121,9 +124,9 @@ export class UserDetailComponent implements OnInit {
 
   editPassword = '';
   editShared = 1;
-  editPhone = '';
-  editContactNote = '';
+  editContactInfo = '';
   editNotes = '';
+  routerEnabled = true;
   assignProfile = environment.defaultProfile;
   assignAmount: number | null = null;
   assignNote = '';
@@ -149,9 +152,9 @@ export class UserDetailComponent implements OnInit {
         if (!u) return;
         this.user.set(u);
         this.editShared = u.shared_users;
-        this.editPhone = u.contact_phone ?? '';
-        this.editContactNote = u.contact_note ?? '';
+        this.editContactInfo = u.contact_info ?? '';
         this.editNotes = u.notes ?? '';
+        this.routerEnabled = !u.disabled;
       });
   }
 
@@ -161,9 +164,9 @@ export class UserDetailComponent implements OnInit {
     this.saving.set(true);
     const body: Record<string, unknown> = {
       shared_users: this.editShared,
-      contact_phone: this.editPhone,
-      contact_note: this.editContactNote,
+      contact_info: this.editContactInfo,
       notes: this.editNotes,
+      disabled: !this.routerEnabled,
     };
     if (this.editPassword) body['password'] = this.editPassword;
     this.vpn.patch(u.id, body).pipe(
@@ -213,9 +216,9 @@ export class UserDetailComponent implements OnInit {
     const u = this.user();
     if (!u) return;
     this.confirmDelete.set(false);
-    this.vpn.remove(u.id).subscribe({
+    this.vpn.delete(u.id).subscribe({
       next: () => void this.router.navigate(['/users']),
-      error: (e) => this.error.set(ApiClient.mapError(e)),
+      error: (e: unknown) => this.error.set(ApiClient.mapError(e)),
     });
   }
 

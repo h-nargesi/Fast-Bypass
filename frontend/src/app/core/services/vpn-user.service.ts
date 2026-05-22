@@ -1,14 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiClient } from '../api/api-client.service';
-import { AdminVpnListItem, VpnListItem, VpnUserDetail } from '../models';
+import { AdminVpnListItem, ManagerRow, RenewalItem, RenewalsResponse, VpnListItem, VpnUserDetail } from '../models';
 
 export interface CreateVpnBody {
   local_name: string;
   password: string;
   shared_users: number;
-  contact_phone?: string;
-  contact_note?: string;
+  disabled?: boolean;
+  contact_info?: string;
   notes?: string;
   assign_profile?: boolean;
   profile_name?: string;
@@ -19,24 +19,17 @@ export interface CreateVpnBody {
 export interface PatchVpnBody {
   password?: string;
   shared_users?: number;
-  contact_phone?: string;
-  contact_note?: string;
+  disabled?: boolean;
+  contact_info?: string;
   notes?: string;
-}
-
-export interface AssignProfileBody {
-  profile_name: string;
-  amount_paid?: number;
-  currency?: string;
-  note?: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class VpnUserService {
   private readonly api = inject(ApiClient);
 
-  list(refresh = false, activeOnly = false): Observable<{ items: VpnListItem[] }> {
-    return this.api.get('/vpn-users', { refresh, active_only: activeOnly });
+  list(refresh = false): Observable<{ items: VpnListItem[] }> {
+    return this.api.get('/vpn-users', { refresh: refresh ? 'true' : undefined });
   }
 
   get(id: number): Observable<VpnUserDetail> {
@@ -51,11 +44,14 @@ export class VpnUserService {
     return this.api.patch(`/vpn-users/${id}`, body);
   }
 
-  remove(id: number): Observable<void> {
+  delete(id: number): Observable<void> {
     return this.api.delete(`/vpn-users/${id}`);
   }
 
-  assignProfile(id: number, body: AssignProfileBody): Observable<VpnUserDetail> {
+  assignProfile(
+    id: number,
+    body: { profile_name: string; amount_paid?: number; currency?: string; note?: string },
+  ): Observable<VpnUserDetail> {
     return this.api.post(`/vpn-users/${id}/assign-profile`, body);
   }
 
@@ -63,8 +59,12 @@ export class VpnUserService {
     return this.api.delete(`/vpn-users/${id}/profiles/${profileRowId}`);
   }
 
+  connectionBundle(id: number): Observable<VpnUserDetail['connection_bundle']> {
+    return this.api.get(`/vpn-users/${id}/connection-bundle`);
+  }
+
   downloadOvpn(id: number): Observable<Blob> {
-    return this.api.download(`/vpn-users/${id}/ovpn`);
+    return this.api.download(`/vpn-users/${id}/download-ovpn`);
   }
 }
 
@@ -76,16 +76,43 @@ export class AdminVpnService {
     refresh?: boolean;
     manager_id?: number;
     orphan?: boolean;
-  }): Observable<{ items: AdminVpnListItem[] }> {
+  } = {}): Observable<{ items: AdminVpnListItem[] }> {
     return this.api.get('/admin/vpn-users', {
-      refresh: opts.refresh,
+      refresh: opts.refresh ? 'true' : undefined,
       manager_id: opts.manager_id,
-      orphan: opts.orphan,
+      orphan: opts.orphan ? 'true' : undefined,
     });
   }
 
   get(id: number): Observable<VpnUserDetail> {
     return this.api.get(`/admin/vpn-users/${id}`);
+  }
+
+  create(body: CreateVpnBody & { manager_id?: number }): Observable<VpnUserDetail> {
+    return this.api.post('/admin/vpn-users', body);
+  }
+
+  patch(id: number, body: PatchVpnBody & { manager_id?: number }): Observable<VpnUserDetail> {
+    return this.api.patch(`/admin/vpn-users/${id}`, body);
+  }
+
+  delete(id: number): Observable<void> {
+    return this.api.delete(`/admin/vpn-users/${id}`);
+  }
+
+  assignProfile(
+    id: number,
+    body: { profile_name: string; amount_paid?: number; currency?: string; note?: string },
+  ): Observable<VpnUserDetail> {
+    return this.api.post(`/admin/vpn-users/${id}/assign-profile`, body);
+  }
+
+  removeProfile(id: number, profileRowId: string): Observable<void> {
+    return this.api.delete(`/admin/vpn-users/${id}/profiles/${profileRowId}`);
+  }
+
+  downloadOvpn(id: number): Observable<Blob> {
+    return this.api.download(`/admin/vpn-users/${id}/download-ovpn`);
   }
 }
 
@@ -93,22 +120,19 @@ export class AdminVpnService {
 export class RenewalsService {
   private readonly api = inject(ApiClient);
 
-  managerList(settled = '', page = 1): Observable<import('../models').RenewalsResponse> {
-    return this.api.get('/renewals', { settled, page, page_size: 50 });
+  managerList(settled = '', page = 1): Observable<RenewalsResponse> {
+    return this.api.get('/renewals', { settled, page: String(page) });
   }
 
   adminList(opts: {
     manager_id?: number;
     settled?: string;
-    q?: string;
     page?: number;
-  }): Observable<import('../models').RenewalsResponse> {
+  } = {}): Observable<RenewalsResponse> {
     return this.api.get('/admin/renewals', {
       manager_id: opts.manager_id,
-      settled: opts.settled ?? '',
-      q: opts.q,
-      page: opts.page ?? 1,
-      page_size: 50,
+      settled: opts.settled,
+      page: opts.page != null ? String(opts.page) : undefined,
     });
   }
 
@@ -124,7 +148,7 @@ export class RenewalsService {
 export class AdminService {
   private readonly api = inject(ApiClient);
 
-  listManagers(): Observable<{ items: import('../models').ManagerRow[] }> {
+  listManagers(): Observable<{ items: ManagerRow[] }> {
     return this.api.get('/admin/managers');
   }
 
@@ -140,13 +164,13 @@ export class AdminService {
 
   patchManager(
     id: number,
-    body: {
-      display_name?: string;
-      quota?: number;
-      is_active?: boolean;
-      password?: string;
-    },
-  ): Observable<import('../models').ManagerRow> {
+    body: Partial<{
+      display_name: string;
+      quota: number;
+      is_active: boolean;
+      password: string;
+    }>,
+  ): Observable<ManagerRow> {
     return this.api.patch(`/admin/managers/${id}`, body);
   }
 }

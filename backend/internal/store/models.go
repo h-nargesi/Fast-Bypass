@@ -30,9 +30,7 @@ type VPNUserMeta struct {
 	ID           int64
 	MikrotikName string
 	ManagerID    sql.NullInt64
-	LocalName    string
-	ContactPhone sql.NullString
-	ContactNote  sql.NullString
+	ContactInfo  sql.NullString
 	Notes        sql.NullString
 	CreatedAt    string
 	UpdatedAt    string

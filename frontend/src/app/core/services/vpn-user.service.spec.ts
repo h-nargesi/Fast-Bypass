@@ -5,7 +5,7 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { AdminService, RenewalsService, VpnUserService } from './vpn-user.service';
+import { AdminService, AdminVpnService, RenewalsService, VpnUserService } from './vpn-user.service';
 
 describe('VpnUserService', () => {
   let http: HttpTestingController;
@@ -27,6 +27,146 @@ describe('VpnUserService', () => {
       (req) => req.url === '/api/v1/vpn-users' && req.params.get('refresh') === 'true',
     );
     req.flush({ items: [{ mikrotik_name: 'a', shared_users: 1, profiles: [] }] });
+  });
+
+  it('list response maps disabled flag', () => {
+    vpn.list().subscribe((res) => {
+      expect(res.items[0].disabled).toBe(true);
+      expect(res.items[1].disabled).toBe(false);
+    });
+    const req = http.expectOne('/api/v1/vpn-users');
+    req.flush({
+      items: [
+        { mikrotik_name: 'x-off', shared_users: 1, disabled: true, profiles: [] },
+        { mikrotik_name: 'x-on', shared_users: 1, disabled: false, profiles: [] },
+      ],
+    });
+  });
+
+  it('patches vpn user with contact_info and notes', () => {
+    vpn
+      .patch(3, { contact_info: 'tg @u', notes: 'n' })
+      .subscribe((u) => expect(u.contact_info).toBe('tg @u'));
+    const req = http.expectOne('/api/v1/vpn-users/3');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ contact_info: 'tg @u', notes: 'n' });
+    req.flush({
+      id: 3,
+      mikrotik_name: 'ali-u',
+      shared_users: 1,
+      disabled: false,
+      contact_info: 'tg @u',
+      notes: 'n',
+      profiles: [],
+      activations: [],
+      connection_bundle: {
+        username: 'ali-u',
+        password: 'x',
+        openvpn_key_password: '',
+        l2tp_ipsec_secret: '',
+        l2tp_server: '',
+        openvpn_download_url: '',
+      },
+      manager_id: 1,
+      manager_display_name: null,
+      manager_username: null,
+      manager_slug: null,
+      owner_mismatch: false,
+    });
+  });
+});
+
+describe('AdminVpnService', () => {
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), AdminVpnService],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('creates orphan user without manager_id', () => {
+    const svc = TestBed.inject(AdminVpnService);
+    svc
+      .create({
+        local_name: 'orphan1',
+        password: 'Secret123',
+        shared_users: 1,
+        contact_info: 'info',
+      })
+      .subscribe((u) => expect(u.mikrotik_name).toBe('orphan1'));
+    const req = http.expectOne('/api/v1/admin/vpn-users');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      local_name: 'orphan1',
+      password: 'Secret123',
+      shared_users: 1,
+      contact_info: 'info',
+    });
+    expect(req.request.body).not.toHaveProperty('manager_id');
+    req.flush({
+      id: 9,
+      mikrotik_name: 'orphan1',
+      shared_users: 1,
+      disabled: false,
+      contact_info: 'info',
+      notes: null,
+      profiles: [],
+      activations: [],
+      connection_bundle: {
+        username: 'orphan1',
+        password: 'Secret123',
+        openvpn_key_password: '',
+        l2tp_ipsec_secret: '',
+        l2tp_server: '',
+        openvpn_download_url: '',
+      },
+      manager_id: null,
+      manager_display_name: null,
+      manager_username: null,
+      manager_slug: null,
+      owner_mismatch: false,
+    });
+  });
+
+  it('creates user for manager with manager_id', () => {
+    const svc = TestBed.inject(AdminVpnService);
+    svc
+      .create({
+        manager_id: 2,
+        local_name: 'u1',
+        password: 'Secret123',
+        shared_users: 1,
+      })
+      .subscribe();
+    const req = http.expectOne('/api/v1/admin/vpn-users');
+    expect(req.request.body).toMatchObject({ manager_id: 2, local_name: 'u1' });
+    req.flush({
+      id: 10,
+      mikrotik_name: 'bob-u1',
+      shared_users: 1,
+      disabled: false,
+      contact_info: null,
+      notes: null,
+      profiles: [],
+      activations: [],
+      connection_bundle: {
+        username: 'bob-u1',
+        password: 'Secret123',
+        openvpn_key_password: '',
+        l2tp_ipsec_secret: '',
+        l2tp_server: '',
+        openvpn_download_url: '',
+      },
+      manager_id: 2,
+      manager_display_name: null,
+      manager_username: null,
+      manager_slug: null,
+      owner_mismatch: false,
+    });
   });
 });
 

@@ -52,7 +52,7 @@ func (f *FakeClient) GetUser(name string) (*User, error) {
 	return &cp, nil
 }
 
-func (f *FakeClient) AddUser(name, password, comment string, sharedUsers int) error {
+func (f *FakeClient) AddUser(name, password, comment string, sharedUsers int, disabled bool) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.users[name]; ok {
@@ -60,11 +60,11 @@ func (f *FakeClient) AddUser(name, password, comment string, sharedUsers int) er
 	}
 	id := fmt.Sprintf("*%d", f.nextID)
 	f.nextID++
-	f.users[name] = &User{ID: id, Name: name, Password: password, SharedUsers: sharedUsers, Comment: comment}
+	f.users[name] = &User{ID: id, Name: name, Password: password, SharedUsers: sharedUsers, Comment: comment, Disabled: disabled}
 	return nil
 }
 
-func (f *FakeClient) SetUser(name string, password *string, sharedUsers *int, comment string) error {
+func (f *FakeClient) SetUser(name string, password *string, sharedUsers *int, comment string, disabled *bool) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	u, ok := f.users[name]
@@ -78,6 +78,9 @@ func (f *FakeClient) SetUser(name string, password *string, sharedUsers *int, co
 		u.SharedUsers = *sharedUsers
 	}
 	u.Comment = comment
+	if disabled != nil {
+		u.Disabled = *disabled
+	}
 	return nil
 }
 

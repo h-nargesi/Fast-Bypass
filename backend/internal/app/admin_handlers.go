@@ -5,10 +5,12 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"fast-bypass/internal/httpx"
+	"fast-bypass/internal/mikrotik"
 	"fast-bypass/internal/owner"
 	"fast-bypass/internal/password"
 	"fast-bypass/internal/store"
@@ -90,10 +92,14 @@ func (a *App) HandleAdminListVPNUsers(w http.ResponseWriter, r *http.Request) {
 		if filterMgr != nil && ownerID != *filterMgr {
 			continue
 		}
+		activeOnly := r.URL.Query().Get("active_only") == "true"
+		if activeOnly && u.Disabled {
+			continue
+		}
 		mid, dn, un, sl, mismatch := a.enrichOwner(ctx, reg, u.Name, u.Comment)
 		profs, _ := a.MT.ListUserProfiles(u.Name)
 		item := map[string]any{
-			"mikrotik_name": u.Name, "shared_users": u.SharedUsers,
+			"mikrotik_name": u.Name, "shared_users": u.SharedUsers, "disabled": u.Disabled,
 			"mikrotik_comment": u.Comment, "manager_id": mid,
 			"manager_display_name": dn, "manager_username": un, "manager_slug": sl,
 			"owner_mismatch": mismatch, "profiles": profileDTOs(profs),
@@ -165,4 +171,155 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 		"id": m.ID, "username": m.Username, "display_name": m.DisplayName,
 		"slug": m.Slug, "quota": m.Quota, "used_quota": used, "is_active": m.IsActive,
 	})
+}
+
+type adminCreateVPNReq struct {
+	ManagerID *int64 `json:"manager_id"`
+	createVPNReq
+}
+
+func (a *App) HandleAdminCreateVPNUser(w http.ResponseWriter, r *http.Request) {
+	var req adminCreateVPNReq
+	if err := httpx.DecodeJSON(r, &req); err != nil || strings.TrimSpace(req.LocalName) == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "ورودی نامعتبر")
+		return
+	}
+	ctx := r.Context()
+	var out map[string]any
+	var err error
+	if req.ManagerID == nil || *req.ManagerID < 1 {
+		out, err = a.createOrphanVPNUser(ctx, req.createVPNReq)
+	} else {
+		mgr, findErr := a.Store.FindManagerByID(ctx, *req.ManagerID)
+		if errors.Is(findErr, sql.ErrNoRows) {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "مدیر یافت نشد")
+			return
+		}
+		if findErr != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+			return
+		}
+		out, err = a.createVPNUser(ctx, mgr, req.createVPNReq)
+	}
+	if errors.Is(err, errQuotaExceeded) {
+		httpx.WriteError(w, http.StatusConflict, "QUOTA_EXCEEDED", "سقف اتصال همزمان پر است")
+		return
+	}
+	if errors.Is(err, errNameTaken) {
+		httpx.WriteError(w, http.StatusConflict, "NAME_TAKEN", "نام کاربر در روتر وجود دارد")
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", err.Error())
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, out)
+}
+
+func (a *App) HandleAdminPatchVPNUser(w http.ResponseWriter, r *http.Request) {
+	meta, ok := a.vpnMetaByID(w, r)
+	if !ok {
+		return
+	}
+	var req adminPatchVPNReq
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "ورودی نامعتبر")
+		return
+	}
+	reg, _ := a.Registry(r.Context())
+	out, err := a.patchVPNUser(r.Context(), reg, meta, req.patchVPNReq, req.ManagerID, true)
+	if err != nil {
+		a.writeVPNPatchError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+func (a *App) HandleAdminDeleteVPNUser(w http.ResponseWriter, r *http.Request) {
+	meta, ok := a.vpnMetaByID(w, r)
+	if !ok {
+		return
+	}
+	if err := a.deleteVPNUser(r.Context(), meta); err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *App) HandleAdminAssignProfile(w http.ResponseWriter, r *http.Request) {
+	meta, ok := a.vpnMetaByID(w, r)
+	if !ok {
+		return
+	}
+	var req assignProfileReq
+	if err := httpx.DecodeJSON(r, &req); err != nil || req.ProfileName == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "profile_name لازم است")
+		return
+	}
+	reg, _ := a.Registry(r.Context())
+	out, err := a.assignVPNProfile(r.Context(), reg, meta, req, true)
+	if err != nil {
+		if err == mikrotik.ErrProfileMissing {
+			httpx.WriteError(w, http.StatusBadRequest, "PROFILE_NOT_FOUND", "پروفایل در روتر تعریف نشده")
+			return
+		}
+		if errors.Is(err, errOrphanNoOwner) {
+			httpx.WriteError(w, http.StatusForbidden, "ORPHAN_NO_OWNER", "کاربر بدون مدیر — ابتدا مالک را در روتر مشخص کنید")
+			return
+		}
+		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+func (a *App) HandleAdminConnectionBundle(w http.ResponseWriter, r *http.Request) {
+	meta, ok := a.vpnMetaByID(w, r)
+	if !ok {
+		return
+	}
+	u, err := a.MT.GetUser(meta.MikrotikName)
+	if err != nil {
+		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "کاربر در روتر یافت نشد")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, a.connectionBundle(u))
+}
+
+func (a *App) HandleAdminDownloadOvpn(w http.ResponseWriter, r *http.Request) {
+	meta, ok := a.vpnMetaByID(w, r)
+	if !ok {
+		return
+	}
+	u, err := a.MT.GetUser(meta.MikrotikName)
+	if err != nil {
+		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "کاربر در روتر یافت نشد")
+		return
+	}
+	if u.Password == "" {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "رمز در دسترس نیست")
+		return
+	}
+	body, err := a.renderOvpn(u.Name, u.Password)
+	if err != nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "TEMPLATE_MISSING", "قالب ovpn پیکربندی نشده")
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-openvpn-profile")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+u.Name+`.ovpn"`)
+	_, _ = w.Write(body)
+}
+
+func (a *App) HandleAdminRemoveProfile(w http.ResponseWriter, r *http.Request) {
+	meta, ok := a.vpnMetaByID(w, r)
+	if !ok {
+		return
+	}
+	profileRowID := chi.URLParam(r, "profileRowId")
+	if err := a.removeVPNProfile(meta, profileRowID); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "حذف پروفایل ممکن نیست")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

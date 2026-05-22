@@ -70,12 +70,13 @@ func (r *RouterOS) GetUser(name string) (*User, error) {
 	return nil, ErrNotFound
 }
 
-func (r *RouterOS) AddUser(name, password, comment string, sharedUsers int) error {
+func (r *RouterOS) AddUser(name, password, comment string, sharedUsers int, disabled bool) error {
 	args := []string{
 		"/user-manager/user/add",
 		"=name=" + name,
 		"=password=" + password,
 		fmt.Sprintf("=shared-users=%d", sharedUsers),
+		"=disabled=" + disabledYesNo(disabled),
 	}
 	if comment != "" {
 		args = append(args, "=comment="+comment)
@@ -84,7 +85,7 @@ func (r *RouterOS) AddUser(name, password, comment string, sharedUsers int) erro
 	return mapDeviceErr(err)
 }
 
-func (r *RouterOS) SetUser(name string, password *string, sharedUsers *int, comment string) error {
+func (r *RouterOS) SetUser(name string, password *string, sharedUsers *int, comment string, disabled *bool) error {
 	u, err := r.GetUser(name)
 	if err != nil {
 		return err
@@ -99,8 +100,18 @@ func (r *RouterOS) SetUser(name string, password *string, sharedUsers *int, comm
 	if comment != "" {
 		args = append(args, "=comment="+comment)
 	}
+	if disabled != nil {
+		args = append(args, "=disabled="+disabledYesNo(*disabled))
+	}
 	_, err = r.run(args...)
 	return mapDeviceErr(err)
+}
+
+func disabledYesNo(disabled bool) string {
+	if disabled {
+		return "yes"
+	}
+	return "no"
 }
 
 func (r *RouterOS) RemoveUser(name string) error {
@@ -234,6 +245,16 @@ func userFromSentence(s *proto.Sentence) User {
 		Password:    field(s, "password"),
 		SharedUsers: intField(s, "shared-users"),
 		Comment:     field(s, "comment"),
+		Disabled:    fieldYes(field(s, "disabled")),
+	}
+}
+
+func fieldYes(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "yes", "true", "1":
+		return true
+	default:
+		return false
 	}
 }
 

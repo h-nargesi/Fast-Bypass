@@ -59,9 +59,9 @@ Errors: `{ "error": { "code": "QUOTA_EXCEEDED", "message": "..." } }`
   "local_name": "reza01",
   "password": "Secret123",
   "shared_users": 2,
-  "contact_phone": "09121234567",
-  "contact_note": "تلگرام @x",
+  "contact_info": "تلگرام @x",
   "notes": "مشتری فروشگاه",
+  "disabled": false,
   "assign_profile": true,
   "profile_name": "profile-open-2M-30d",
   "amount_paid": 150000,
@@ -79,11 +79,17 @@ Errors: `{ "error": { "code": "QUOTA_EXCEEDED", "message": "..." } }`
 {
   "id": 1,
   "mikrotik_name": "ali_reza01",
-  "local_name": "reza01",
   "shared_users": 2,
+  "disabled": false,
   "profiles": [{ "profile": "profile-open-2M-30d", "state": "active", "end_time": "..." }]
 }
 ```
+
+`disabled` (اختیاری، پیش‌فرض `false`): `true` = غیرفعال در **User Manager روتر**؛ در SQLite ذخیره نمی‌شود.
+
+### PATCH `/vpn-users/:id`
+
+فیلدهای اختیاری: `password`, `shared_users`, `disabled`, `contact_info`, `notes`.
 
 ### POST `/vpn-users/:id/assign-profile`
 
@@ -137,7 +143,7 @@ Errors: `{ "error": { "code": "QUOTA_EXCEEDED", "message": "..." } }`
 
 | Param               | توضیح                         |
 | ------------------- | ----------------------------- |
-| `q`                 | جستجو در local_name / contact |
+| `q`                 | جستجو در mikrotik_name / contact_info |
 | `active_only`       | فقط با پروفایل فعال           |
 | `page`, `page_size` | پیش‌فرض 1, 20                 |
 | `refresh`           | `true` = نادیده گرفتن کش MikroTik |
@@ -185,10 +191,11 @@ Query مجاز: `from`, `to`, `q`, `page`, `page_size`, `refresh` (همان مع
 | POST   | `/admin/managers`      | admin                                    |
 | PATCH  | `/admin/managers/:id`  | admin                                    |
 | GET    | `/admin/vpn-users`     | همه — `manager_id`, `orphan=true`؛ هر ردیف شامل مالک + `mikrotik_comment` + `owner_mismatch` |
+| POST   | `/admin/vpn-users`     | ایجاد کاربر VPN — بدنه همان `POST /vpn-users` + **`manager_id` اختیاری** (بدون مدیر = orphan) |
 | GET    | `/admin/vpn-users/:id` | جزئیات enrich + `connection_bundle` + activations + profiles |
 | GET    | `/admin/vpn-users/:id/connection` | همان `connection_bundle` |
 | GET    | `/admin/vpn-users/:id/ovpn` | دانلود `.ovpn` — بدون `NOT_OWNER` |
-| PATCH  | `/admin/vpn-users/:id` | همان فیلدهای مدیر (`password`, `shared_users`, `contact_*`, `notes`) + اختیاری `manager_id` برای هم‌خوان‌سازی DB وقتی `resolve_owner` مالک دارد |
+| PATCH  | `/admin/vpn-users/:id` | همان فیلدهای مدیر (`password`, `shared_users`, `contact_info`, `notes`) + اختیاری `manager_id` برای هم‌خوان‌سازی DB وقتی `resolve_owner` مالک دارد |
 | DELETE | `/admin/vpn-users/:id` | حذف روتر + DB |
 | POST   | `/admin/vpn-users/:id/assign-profile` | assign / تمدید — quota **مدیر مالک** (`resolve_owner`) اعمال می‌شود |
 | DELETE | `/admin/vpn-users/:id/profiles/:profileRowId` | حذف رزرو |
@@ -212,8 +219,9 @@ Query مجاز: `from`, `to`, `q`, `page`, `page_size`, `refresh` (همان مع
 {
   "id": 12,
   "mikrotik_name": "ali-reza01",
-  "local_name": "reza01",
   "mikrotik_comment": "panel:ali",
+  "contact_info": "تلگرام @x",
+  "notes": "یادداشت",
   "manager_id": 1,
   "manager_display_name": "علی احمدی",
   "manager_username": "ali",
@@ -240,6 +248,24 @@ orphan:
 
 `manager_*` از JOIN `managers` روی `resolve_owner` (نه لزوماً `vpn_user_meta.manager_id` اگر ناهماهنگ باشد — در آن صورت `owner_mismatch: true` و UI مالک واقعی را از `resolve_owner` نشان می‌دهد).
 
+### POST `/admin/vpn-users`
+
+```json
+{
+  "manager_id": 1,
+  "local_name": "reza01",
+  "password": "Secret123",
+  "shared_users": 2,
+  "assign_profile": true,
+  "profile_name": "profile-open-2M-30d",
+  "amount_paid": 150000,
+  "currency": "IRR"
+}
+```
+
+- با **`manager_id`**: سقف `shared_users` و نام/comment روتر مطابق مدیر (`name_prefix + local_name`، `comment=panel:{slug}`).
+- **بدون `manager_id`**: `local_name` = نام کامل روتر (حداکثر ۳۲ کاراکتر)؛ `comment` خالی؛ `manager_id` در DB = `NULL` (orphan).
+
 ### PATCH `/admin/vpn-users/:id`
 
 Body ترکیبی:
@@ -247,7 +273,7 @@ Body ترکیبی:
 ```json
 {
   "password": "NewSecret1",
-  "contact_phone": "09121234567",
+  "contact_info": "تلگرام @x",
   "notes": "یادداشت پشتیبانی",
   "manager_id": 1
 }
@@ -304,7 +330,7 @@ Query:
 | `manager_id` | شناسه مدیر — اگر **حذف/خالی** باشد → فقط تمدیدهای کاربران **orphan** (`resolve_owner` = بدون مدیر) |
 | `settled` | `unsettled` (پیش‌فرض فیلتر جدول)، `settled`، `all` — فقط داخل همان محدودهٔ `manager_id`/orphan |
 | `from`, `to` | بازه `created_at` (ISO8601، اختیاری) |
-| `q` | جستجو در `mikrotik_name` / `local_name` |
+| `q` | جستجو در `mikrotik_name` / `contact_info` |
 | `page`, `page_size` | پیش‌فرض 1, 50 |
 
 **فیلتر مالک (سرور):**

@@ -65,6 +65,11 @@ export const routes: Routes = [
           import('./features/admin/users/admin-user-list.component').then((m) => m.AdminUserListComponent),
       },
       {
+        path: 'users/new',
+        loadComponent: () =>
+          import('./features/admin/users/admin-user-form.component').then((m) => m.AdminUserFormComponent),
+      },
+      {
         path: 'users/:id',
         loadComponent: () =>
           import('./features/admin/users/admin-user-detail.component').then(

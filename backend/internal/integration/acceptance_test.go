@@ -34,8 +34,8 @@ func TestManager_listIsolation_and_legacyComment(t *testing.T) {
 		"local_name": "u1", "password": "Secret123", "shared_users": 1,
 	}, aliToken)
 
-	_ = fake.AddUser("reza", "Secret123", "panel:ali", 1)
-	_ = fake.AddUser("bob-only", "Secret123", "panel:bob", 1)
+	_ = fake.AddUser("reza", "Secret123", "panel:ali", 1, false)
+	_ = fake.AddUser("bob-only", "Secret123", "panel:bob", 1, false)
 
 	w := testutil.DoJSON(t, h, http.MethodGet, "/api/v1/vpn-users", nil, aliToken)
 	var list map[string]any
@@ -78,6 +78,14 @@ func TestManager_detail_noMikrotikComment_hasConnectionBundle(t *testing.T) {
 	bundle, ok := detail["connection_bundle"].(map[string]any)
 	if !ok || bundle["username"] != "ali-c1" || bundle["password"] != "Secret123" {
 		t.Fatalf("connection_bundle: %+v", bundle)
+	}
+	for _, key := range []string{"local_name", "contact_phone", "contact_note", "mikrotik_comment"} {
+		if _, ok := detail[key]; ok {
+			t.Fatalf("manager detail must not include %q", key)
+		}
+	}
+	if _, ok := detail["contact_info"]; !ok {
+		t.Fatal("detail should include contact_info key (nullable)")
 	}
 }
 
@@ -167,8 +175,8 @@ func TestAdmin_vpnUsers_orphanFilter_and_ownerFields(t *testing.T) {
 	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
 	testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
 
-	_ = fake.AddUser("guest99", "Secret123", "", 2)
-	_ = fake.AddUser("ali-z", "Secret123", "panel:ali", 1)
+	_ = fake.AddUser("guest99", "Secret123", "", 2, false)
+	_ = fake.AddUser("ali-z", "Secret123", "panel:ali", 1, false)
 
 	w := testutil.DoJSON(t, h, http.MethodGet, "/api/v1/admin/vpn-users?orphan=true", nil, adminToken)
 	var resp map[string]any
@@ -199,6 +207,78 @@ func TestAdmin_vpnUsers_orphanFilter_and_ownerFields(t *testing.T) {
 	}
 }
 
+func TestAdmin_vpnUser_createPatchDelete(t *testing.T) {
+	application, _, fake := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	mid, _ := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/admin/vpn-users", map[string]any{
+		"manager_id": mid, "local_name": "adm1", "password": "Secret123", "shared_users": 1,
+	}, adminToken)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("admin create: %d %s", w.Code, w.Body.String())
+	}
+	var created map[string]any
+	testutil.DecodeJSON(t, w, &created)
+	id := int(created["id"].(float64))
+	u, _ := fake.GetUser("ali-adm1")
+	if u.Comment != "panel:ali" {
+		t.Fatalf("comment: %q", u.Comment)
+	}
+
+	w = testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/vpn-users/"+strconv.Itoa(id), map[string]any{
+		"contact_info": "admin contact",
+		"notes":        "from admin",
+	}, adminToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("admin patch: %d %s", w.Code, w.Body.String())
+	}
+	var patched map[string]any
+	testutil.DecodeJSON(t, w, &patched)
+	if patched["notes"] != "from admin" {
+		t.Fatalf("notes: %+v", patched)
+	}
+	if patched["contact_info"] != "admin contact" {
+		t.Fatalf("contact_info: %+v", patched)
+	}
+	for _, key := range []string{"local_name", "contact_phone", "contact_note"} {
+		if _, ok := patched[key]; ok {
+			t.Fatalf("patched response must not include %q", key)
+		}
+	}
+	if _, ok := patched["mikrotik_comment"]; !ok {
+		t.Fatal("admin detail should include mikrotik_comment")
+	}
+
+	w = testutil.DoJSON(t, h, http.MethodPost, "/api/v1/admin/vpn-users", map[string]any{
+		"local_name": "orphan01", "password": "Secret123", "shared_users": 1,
+	}, adminToken)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("admin orphan create: %d %s", w.Code, w.Body.String())
+	}
+	var orphan map[string]any
+	testutil.DecodeJSON(t, w, &orphan)
+	if orphan["mikrotik_name"] != "orphan01" {
+		t.Fatalf("orphan name: %+v", orphan)
+	}
+	if _, ok := orphan["local_name"]; ok {
+		t.Fatal("response must not include local_name")
+	}
+	uOrphan, _ := fake.GetUser("orphan01")
+	if uOrphan.Comment != "" {
+		t.Fatalf("orphan comment: %q", uOrphan.Comment)
+	}
+
+	w = testutil.DoJSON(t, h, http.MethodDelete, "/api/v1/admin/vpn-users/"+strconv.Itoa(id), nil, adminToken)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("admin delete: %d %s", w.Code, w.Body.String())
+	}
+	if _, err := fake.GetUser("ali-adm1"); err == nil {
+		t.Fatal("user should be removed from router")
+	}
+}
+
 func TestAdmin_ownerMismatch_flag(t *testing.T) {
 	application, _, fake := testutil.NewTestApp(t)
 	h := server.New(application)
@@ -206,7 +286,7 @@ func TestAdmin_ownerMismatch_flag(t *testing.T) {
 	testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
 	testutil.SeedManager(t, h, adminToken, "bob", "bob", 10)
 
-	_ = fake.AddUser("ali-conflict", "Secret123", "panel:bob", 1)
+	_ = fake.AddUser("ali-conflict", "Secret123", "panel:bob", 1, false)
 
 	w := testutil.DoJSON(t, h, http.MethodGet, "/api/v1/admin/vpn-users", nil, adminToken)
 	var resp map[string]any
@@ -365,7 +445,7 @@ func TestMikrotikList_cacheAndRefresh(t *testing.T) {
 	}
 
 	// تغییر مستقیم روی fake بدون عبور از API — کش باید قدیمی بماند
-	_ = fake.AddUser("ali-extra", "Secret123", "panel:ali", 1)
+	_ = fake.AddUser("ali-extra", "Secret123", "panel:ali", 1, false)
 
 	w = testutil.DoJSON(t, h, http.MethodGet, "/api/v1/vpn-users", nil, mgrToken)
 	testutil.DecodeJSON(t, w, &list)

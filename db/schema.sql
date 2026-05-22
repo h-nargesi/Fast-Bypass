@@ -29,9 +29,7 @@ CREATE TABLE IF NOT EXISTS vpn_user_meta (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     mikrotik_name   TEXT NOT NULL UNIQUE,
     manager_id      INTEGER REFERENCES managers(id) ON DELETE SET NULL,
-    local_name      TEXT NOT NULL,
-    contact_phone   TEXT,
-    contact_note    TEXT,
+    contact_info    TEXT,
     notes           TEXT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
@@ -56,7 +54,6 @@ CREATE TABLE IF NOT EXISTS profile_activations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_vpn_user_meta_manager ON vpn_user_meta(manager_id);
-CREATE INDEX IF NOT EXISTS idx_vpn_user_meta_local ON vpn_user_meta(manager_id, local_name);
 CREATE INDEX IF NOT EXISTS idx_profile_activations_user ON profile_activations(vpn_user_meta_id);
 CREATE INDEX IF NOT EXISTS idx_profile_activations_created ON profile_activations(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_profile_activations_settled ON profile_activations(is_settled, created_at);

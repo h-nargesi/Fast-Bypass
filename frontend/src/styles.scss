@@ -57,6 +57,35 @@ th {
   color: #555;
 }
 
+/* VPN user list: MikroTik disabled vs active */
+tr.row-disabled td {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+tr.row-disabled td:first-child {
+  border-inline-start: 3px solid #9ca3af;
+}
+
+tr.row-disabled a {
+  color: #5c6bc0;
+}
+
+.router-status {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.router-status.off {
+  background: #eceff1;
+  color: #546e7a;
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;

@@ -22,8 +22,9 @@
 | `/admin` | داشبورد تعداد مدیران / orphans |
 | `/admin/managers` | لیست مدیران — ایجاد با slug بدون همپوشانی، ویرایش quota، غیرفعال/فعال |
 | `/admin/settings` | تنظیمات ادمین | همان `/settings` مدیر (نام نمایشی + رمز) |
-| `/admin/users` | لیست همه VPN — فیلتر مدیر / بدون مدیر؛ **ستون «مدیر»** در هر ردیف |
-| `/admin/users/:id` | ویرایش/جزئیات — همان قابلیت‌های `/users/:id` مدیر + نمایش مالک + `mikrotik_comment` |
+| `/admin/users` | لیست همه VPN — فیلتر مدیر / بدون مدیر؛ **ستون «مدیر»** در هر ردیف؛ دکمه «کاربر جدید» |
+| `/admin/users/new` | ایجاد کاربر VPN — مدیر اختیاری (`POST /admin/vpn-users`؛ بدون `manager_id` = orphan) |
+| `/admin/users/:id` | ایجاد/ویرایش/حذف — همان قابلیت‌های `/users/:id` مدیر + نمایش مالک + `mikrotik_comment` |
 | `/admin/renewals` | دفتر تمدید — فیلتر مدیر (پیش‌فرض: بدون مدیر) + تسویه تا رکورد |
 
 ## دفتر تمدیدها — مشترک
@@ -151,7 +152,8 @@ sequenceDiagram
 
 - پیشوند از `GET /me` → `name_prefix` (غیرقابل ویرایش)
 - API فقط `local_name` می‌گیرد؛ سرور `mikrotik_name = name_prefix + local_name` و `comment=panel:{slug}` می‌سازد
-- فیلد **توضیحات** در فرم = `notes` (SQLite) — نه `comment` روتر
+- فیلد **یادداشت** در فرم = `notes` (SQLite) — نه `comment` روتر
+- **اطلاعات تماس** = `contact_info`
 - اعتبارسنجی طول: `len(name_prefix) + len(local_name) ≤ 32`
 
 ## جزئیات کاربر — اطلاعات اتصال برای مشتری
@@ -320,7 +322,7 @@ API: `GET /admin/vpn-users` — query: `manager_id`, `orphan=true`, `q`, `active
 
 | ستون UI | فیلد API | توضیح |
 |---------|----------|--------|
-| نام | `mikrotik_name` / `local_name` | — |
+| نام | `mikrotik_name` | — |
 | **مدیر** | `manager_display_name` | «علی احمدی»؛ اگر orphan → **«بدون مدیر»** (chip خاکستری) |
 | وضعیت پروفایل | `profile_state` | chip |
 | comment روتر | `mikrotik_comment` | فقط ادمین؛ اگر خالی → «—» |
