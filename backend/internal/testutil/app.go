@@ -32,6 +32,8 @@ func TestConfig(dbPath string) config.Config {
 		UsernameLocalMaxLen: 24,
 		SharedUsersMax:      20,
 		CORSOrigins:         []string{"http://localhost:4200"},
+		OpenVPNTemplatePath: "../config/client-template.ovpn",
+		OpenVPNDownloadURL:  "http://example.test/dl/",
 	}
 }
 

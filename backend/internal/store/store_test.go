@@ -92,3 +92,28 @@ func TestVPNMeta_andActivations(t *testing.T) {
 		t.Fatalf("summary = %+v", summary)
 	}
 }
+
+func TestSettleThrough_rejectsWrongScope(t *testing.T) {
+	st, cleanup := openTestStore(t)
+	defer cleanup()
+	ctx := context.Background()
+	hash, _ := password.Hash("AdminPass1")
+	_ = st.CreateAdmin(ctx, "admin", hash)
+	m := &Manager{Username: "ali", PasswordHash: hash, Slug: "ali", Quota: 10, IsActive: true}
+	_ = st.CreateManager(ctx, m)
+	meta := &VPNUserMeta{
+		MikrotikName: "ali-u1", LocalName: "u1",
+		ManagerID: sql.NullInt64{Int64: m.ID, Valid: true},
+	}
+	_ = st.CreateVPNMeta(ctx, meta)
+	act := &ProfileActivation{VPNUserMetaID: meta.ID, ProfileName: "p1", SharedUsers: 1, Currency: "IRR"}
+	_ = st.CreateActivation(ctx, act)
+	_, err := st.SettleThrough(ctx, 1, RenewalThrough{
+		ActivationID: act.ID, ManagerID: ptrInt64(999),
+	})
+	if err == nil {
+		t.Fatal("expected scope error")
+	}
+}
+
+func ptrInt64(v int64) *int64 { return &v }

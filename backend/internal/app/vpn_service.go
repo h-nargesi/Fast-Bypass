@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"fast-bypass/internal/auth"
@@ -88,7 +87,7 @@ func (a *App) buildVPNDetail(ctx context.Context, reg owner.Registry, meta *stor
 		"shared_users": u.SharedUsers,
 		"contact_phone": nullStrVal(meta.ContactPhone), "contact_note": nullStrVal(meta.ContactNote),
 		"notes": nullStrVal(meta.Notes),
-		"profiles": profileDTOs(profs), "activations": acts,
+		"profiles": profileDTOs(profs), "activations": activationDTOs(acts),
 		"connection_bundle": a.connectionBundle(u),
 		"manager_id": mid, "manager_display_name": dn, "manager_username": un, "manager_slug": sl,
 		"owner_mismatch": mismatch,
@@ -97,6 +96,27 @@ func (a *App) buildVPNDetail(ctx context.Context, reg owner.Registry, meta *stor
 		out["mikrotik_comment"] = u.Comment
 	}
 	return out, nil
+}
+
+func activationDTOs(acts []store.ProfileActivation) []map[string]any {
+	var out []map[string]any
+	for _, a := range acts {
+		row := map[string]any{
+			"id": a.ID, "profile_name": a.ProfileName, "shared_users": a.SharedUsers,
+			"currency": a.Currency, "is_settled": a.IsSettled, "created_at": a.CreatedAt,
+		}
+		if a.AmountPaid.Valid {
+			row["amount_paid"] = a.AmountPaid.Float64
+		}
+		if a.MikrotikEndTime.Valid {
+			row["mikrotik_end_time"] = a.MikrotikEndTime.String
+		}
+		if a.Note.Valid {
+			row["note"] = a.Note.String
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 func profileDTOs(profs []mikrotik.UserProfile) []map[string]any {
@@ -249,8 +269,7 @@ func (a *App) assertManagerOwner(reg owner.Registry, c *auth.Claims, name, comme
 }
 
 func (a *App) renderOvpn(username, pass string) ([]byte, error) {
-	path := a.Cfg.OpenVPNTemplatePath
-	b, err := os.ReadFile(path)
+	b, err := a.readOvpnTemplate()
 	if err != nil {
 		return nil, err
 	}

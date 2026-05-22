@@ -16,4 +16,7 @@ test-unit:
 	go test ./internal/owner/... ./internal/quota/... ./internal/password/... ./internal/mikrotik/... ./internal/store/... ./internal/auth/...
 
 test-integration:
-	go test ./internal/integration/...
+	go test ./internal/integration/... -count=1
+
+test-acceptance:
+	go test ./internal/integration/... -run Acceptance -count=1

@@ -18,6 +18,50 @@ make test-integration
 
 Integration از `internal/testutil` برای bootstrap ادمین و seed مدیر استفاده می‌کند.
 
+فایل‌های تست:
+
+| فایل | نقش |
+|------|-----|
+| `internal/integration/api_test.go` | سناریوهای پایه API |
+| `internal/integration/acceptance_test.go` | نگاشت به چک‌لیست [business-rules.md](business-rules.md) فاز ۱ |
+
+### پوشش چک‌لیست پذیرش (backend)
+
+| قانون | unit | integration |
+|-------|:----:|:-------------:|
+| `resolve_owner` (نام / comment / orphan) | ✓ owner | ✓ acceptance |
+| همپوشانی slug | ✓ owner | ✓ api |
+| quota / پروفایل فعال | ✓ quota | ✓ api + acceptance |
+| مدیر فقط کاربران خود | — | ✓ acceptance |
+| مدیر بدون `mikrotik_comment` | — | ✓ acceptance |
+| `comment=panel:{slug}` روی روتر | — | ✓ acceptance |
+| ایجاد + مبلغ activation | — | ✓ acceptance |
+| تمدید با quota پر | — | ✓ api |
+| رد ایجاد / افزایش shared-users | — | ✓ acceptance |
+| ادمین quota / غیرفعال مدیر | — | ✓ acceptance |
+| `QUOTA_BELOW_USAGE` | — | ✓ acceptance |
+| bootstrap ادمین | ✓ store | ✓ acceptance |
+| orphan / فیلدهای مالک ادمین | — | ✓ acceptance |
+| `owner_mismatch` | ✓ owner | ✓ acceptance |
+| `NOT_OWNER` | — | ✓ acceptance |
+| `PATCH /me` محدود | — | ✓ acceptance |
+| دفتر تمدید / settle / ممنوعیت مدیر | — | ✓ api + acceptance |
+| snapshot `shared_users` در activation | ✓ store | ✓ acceptance |
+| کش + `?refresh=true` | ✓ mikrotik | ✓ acceptance |
+| حذف کاربر / حذف رزرو | ✓ fake | ✓ acceptance |
+| `connection_bundle` / `.ovpn` | — | ✓ acceptance |
+| refresh JWT | ✓ auth | ✓ acceptance |
+| تغییر رمز `/me/password` | ✓ password | ✓ acceptance |
+
+**خارج پوشش تست backend (فاز ۱):**
+
+- UI فارسی، RTL، تاریخ شمسی، modal تأیید — **frontend**
+- ویرایش `PATCH /admin/vpn-users/:id` — **هنوز پیاده نشده**
+- لاگ نکردن password — بازبینی دستی / lint
+- timezone `Asia/Tehran` در assert — سرور تست `TZ=UTC`؛ رفتار parse در production با env
+- `SLUG_HAS_USERS` هنگام تغییر slug — نیاز سناریو با کاربر VPN موجود
+- فاز ۲: sync خودکار، audit، اعلان انقضا
+
 ---
 
 برای توسعه و تست پنل به **روتر MikroTik واقعی** (یا مجازی) با User Manager نیاز دارید. راه پیشنهادی روی میز کار توسعه‌دهنده: **Oracle VirtualBox** و یک ماشین مجازی RouterOS.
