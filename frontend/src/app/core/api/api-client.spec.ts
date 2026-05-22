@@ -22,4 +22,12 @@ describe('ApiClient.mapError', () => {
   it('reports connection failure when status is 0', () => {
     expect(ApiClient.mapError(new HttpErrorResponse({ status: 0 }))).toMatch(/ارتباط/);
   });
+
+  it('maps INVALID_CURRENT_PASSWORD to Persian', () => {
+    const err = new HttpErrorResponse({
+      status: 401,
+      error: { error: { code: 'INVALID_CURRENT_PASSWORD', message: 'x' } },
+    });
+    expect(ApiClient.mapError(err)).toMatch(/رمز فعلی/);
+  });
 });

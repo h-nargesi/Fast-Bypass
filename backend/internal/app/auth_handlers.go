@@ -209,16 +209,30 @@ func (a *App) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusUnauthorized, "INVALID_CURRENT_PASSWORD", "رمز فعلی نادرست است")
 			return
 		}
-		hash, _ := password.Hash(req.NewPassword)
-		_ = a.Store.UpdateAdminPassword(ctx, adm.ID, hash)
+		hash, err := password.Hash(req.NewPassword)
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+			return
+		}
+		if err := a.Store.UpdateAdminPassword(ctx, adm.ID, hash); err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+			return
+		}
 	} else {
 		mgr, err := a.Store.FindManagerByID(ctx, c.ManagerID)
 		if err != nil || !password.Check(mgr.PasswordHash, req.CurrentPassword) {
 			httpx.WriteError(w, http.StatusUnauthorized, "INVALID_CURRENT_PASSWORD", "رمز فعلی نادرست است")
 			return
 		}
-		hash, _ := password.Hash(req.NewPassword)
-		_ = a.Store.UpdateManager(ctx, c.ManagerID, nil, nil, nil, &hash)
+		hash, err := password.Hash(req.NewPassword)
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+			return
+		}
+		if err := a.Store.UpdateManager(ctx, c.ManagerID, nil, nil, nil, &hash); err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

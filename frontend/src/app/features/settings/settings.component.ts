@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { catchError, of } from 'rxjs';
+import { catchError, EMPTY } from 'rxjs';
 import { ApiClient } from '../../core/api/api-client.service';
 import { AuthService, ProfileService } from '../../core/auth/auth.service';
 import { AdminProfile, ManagerProfile, MeProfile } from '../../core/models';
@@ -91,7 +91,7 @@ export class SettingsComponent implements OnInit {
     this.profileSvc.patchDisplayName(this.displayName).pipe(
       catchError((e) => {
         this.error.set(ApiClient.mapError(e));
-        return of(null);
+        return EMPTY;
       }),
     ).subscribe((p) => {
       if (p) {
@@ -102,15 +102,18 @@ export class SettingsComponent implements OnInit {
   }
 
   changePassword(): void {
+    this.error.set('');
     this.profileSvc.changePassword(this.currentPw, this.newPw).pipe(
       catchError((e) => {
         this.error.set(ApiClient.mapError(e));
-        return of(null);
+        return EMPTY;
       }),
-    ).subscribe(() => {
-      this.toast.show('رمز تغییر کرد');
-      this.currentPw = '';
-      this.newPw = '';
+    ).subscribe({
+      next: () => {
+        this.toast.show('رمز تغییر کرد');
+        this.currentPw = '';
+        this.newPw = '';
+      },
     });
   }
 }

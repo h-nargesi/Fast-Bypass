@@ -437,6 +437,66 @@ func TestPOST_me_password(t *testing.T) {
 		t.Fatalf("change password: %d %s", w.Code, w.Body.String())
 	}
 	testutil.LoginToken(t, h, "ali", "NewPass123")
+
+	w = testutil.DoJSON(t, h, http.MethodPost, "/api/v1/me/password", map[string]string{
+		"current_password": "AdminPass1", "new_password": "NewAdmin123",
+	}, adminToken)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("admin change password: %d %s", w.Code, w.Body.String())
+	}
+	testutil.LoginToken(t, h, "admin", "NewAdmin123")
+}
+
+func TestPOST_me_password_wrongCurrent(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	_, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+
+	for _, tc := range []struct {
+		name   string
+		token  string
+		user   string
+		pass   string
+		expect string
+	}{
+		{"admin", adminToken, "admin", "AdminPass1", "NewAdmin123"},
+		{"manager", mgrToken, "ali", "ManagerPass1", "NewPass123"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/me/password", map[string]string{
+				"current_password": "wrong-password",
+				"new_password":     tc.expect,
+			}, tc.token)
+			if w.Code != http.StatusUnauthorized {
+				t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+			}
+			var body struct {
+				Error struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}
+			testutil.DecodeJSON(t, w, &body)
+			if body.Error.Code != "INVALID_CURRENT_PASSWORD" {
+				t.Fatalf("code=%q", body.Error.Code)
+			}
+			testutil.LoginToken(t, h, tc.user, tc.pass)
+		})
+	}
+}
+
+func TestPOST_me_password_invalidNew(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/me/password", map[string]string{
+		"current_password": "AdminPass1", "new_password": "ab",
+	}, adminToken)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	testutil.LoginToken(t, h, "admin", "AdminPass1")
 }
 
 func TestRemoveInactiveProfileReserve(t *testing.T) {

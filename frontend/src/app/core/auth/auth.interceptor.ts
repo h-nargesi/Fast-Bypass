@@ -1,6 +1,12 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { catchError, from, switchMap, throwError } from 'rxjs';
+import { ApiErrorBody } from '../models';
 import * as storage from './token-storage';
+
+function apiErrorCode(err: HttpErrorResponse): string | undefined {
+  const body = err.error as ApiErrorBody | undefined;
+  return body?.error?.code;
+}
 
 let refreshInFlight: Promise<boolean> | null = null;
 
@@ -16,6 +22,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (err.status !== 401 || req.url.includes('/auth/')) {
         return throwError(() => err);
       }
+      if (apiErrorCode(err) === 'INVALID_CURRENT_PASSWORD') {
+        return throwError(() => err);
+      }
       return from(refreshTokens()).pipe(
         switchMap((ok) => {
           if (!ok) {
@@ -26,10 +35,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             setHeaders: { Authorization: `Bearer ${storage.getAccessToken()}` },
           });
           return next(retry);
-        }),
-        catchError(() => {
-          storage.clearSession();
-          return throwError(() => err);
         }),
       );
     }),

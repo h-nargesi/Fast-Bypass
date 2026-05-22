@@ -32,6 +32,7 @@ describe('apiErrorMessage', () => {
   it('maps known API codes to Persian', () => {
     expect(apiErrorMessage('QUOTA_EXCEEDED')).toBe(API_ERROR_MESSAGES['QUOTA_EXCEEDED']);
     expect(apiErrorMessage('MANAGER_DISABLED')).toMatch(/غیرفعال/);
+    expect(apiErrorMessage('INVALID_CURRENT_PASSWORD')).toMatch(/رمز فعلی/);
   });
 
   it('uses fallback for unknown codes', () => {
