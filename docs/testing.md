@@ -1,5 +1,25 @@
 # تست و محیط توسعه
 
+## تست خودکار backend (Go)
+
+```bash
+cd backend
+go mod tidy
+make test          # همه unit + integration
+make test-unit     # فقط unit
+make test-integration
+```
+
+| پکیج | نوع | محتوا |
+|------|-----|--------|
+| `internal/owner`, `quota`, `password`, `auth`, `mikrotik` | Unit | قوانین مالکیت، quota، رمز، JWT، FakeClient |
+| `internal/store` | Unit | SQLite موقت، مدیر، activation |
+| `internal/integration` | Integration | HTTP با `httptest`، DB موقت، `FakeClient` |
+
+Integration از `internal/testutil` برای bootstrap ادمین و seed مدیر استفاده می‌کند.
+
+---
+
 برای توسعه و تست پنل به **روتر MikroTik واقعی** (یا مجازی) با User Manager نیاز دارید. راه پیشنهادی روی میز کار توسعه‌دهنده: **Oracle VirtualBox** و یک ماشین مجازی RouterOS.
 
 ## VirtualBox + MikroTik CHR

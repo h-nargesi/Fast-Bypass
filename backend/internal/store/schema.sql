@@ -1,0 +1,56 @@
+-- embedded copy of db/schema.sql
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS managers (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    username        TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash   TEXT NOT NULL,
+    display_name    TEXT NOT NULL DEFAULT '',
+    slug            TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    quota           INTEGER NOT NULL CHECK (quota > 0),
+    is_active       INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS panel_admins (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    username        TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash   TEXT NOT NULL,
+    is_active       INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS vpn_user_meta (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    mikrotik_name   TEXT NOT NULL UNIQUE,
+    manager_id      INTEGER REFERENCES managers(id) ON DELETE SET NULL,
+    local_name      TEXT NOT NULL,
+    contact_phone   TEXT,
+    contact_note    TEXT,
+    notes           TEXT,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS profile_activations (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    vpn_user_meta_id INTEGER NOT NULL REFERENCES vpn_user_meta(id) ON DELETE CASCADE,
+    profile_name    TEXT NOT NULL,
+    shared_users    INTEGER NOT NULL CHECK (shared_users > 0),
+    amount_paid     REAL,
+    currency        TEXT NOT NULL DEFAULT 'IRR',
+    paid_at         TEXT,
+    note            TEXT,
+    mikrotik_end_time TEXT,
+    is_settled      INTEGER NOT NULL DEFAULT 0 CHECK (is_settled IN (0, 1)),
+    settled_at      TEXT,
+    settled_by_admin_id INTEGER REFERENCES panel_admins(id) ON DELETE SET NULL,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_vpn_user_meta_manager ON vpn_user_meta(manager_id);
+CREATE INDEX IF NOT EXISTS idx_vpn_user_meta_local ON vpn_user_meta(manager_id, local_name);
+CREATE INDEX IF NOT EXISTS idx_profile_activations_user ON profile_activations(vpn_user_meta_id);
+CREATE INDEX IF NOT EXISTS idx_profile_activations_created ON profile_activations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_profile_activations_settled ON profile_activations(is_settled, created_at);

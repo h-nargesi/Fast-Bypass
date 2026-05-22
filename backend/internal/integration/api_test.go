@@ -1,0 +1,208 @@
+package integration_test
+
+import (
+	"net/http"
+	"strconv"
+	"testing"
+
+	"fast-bypass/internal/server"
+	"fast-bypass/internal/testutil"
+)
+
+func TestHealth(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	w := testutil.DoJSON(t, h, http.MethodGet, "/health", nil, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestAuth_login_admin_and_manager(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	if adminToken == "" {
+		t.Fatal("empty admin token")
+	}
+	_, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+	w := testutil.DoJSON(t, h, http.MethodGet, "/api/v1/me", nil, mgrToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /me: %d %s", w.Code, w.Body.String())
+	}
+	var me map[string]any
+	testutil.DecodeJSON(t, w, &me)
+	if me["slug"] != "ali" || me["name_prefix"] != "ali-" {
+		t.Fatalf("me: %+v", me)
+	}
+}
+
+func TestAdmin_createManager_slugOverlap(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/admin/managers", map[string]any{
+		"username": "ali2", "password": "ManagerPass1",
+		"display_name": "x", "slug": "alireza", "quota": 5,
+	}, adminToken)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409 SLUG_OVERLAPS, got %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestManager_createVPNUser_and_list(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	_, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/vpn-users", map[string]any{
+		"local_name": "reza01", "password": "Secret123", "shared_users": 2,
+		"assign_profile": true, "profile_name": "profile-open-2M-30d",
+	}, mgrToken)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create vpn: %d %s", w.Code, w.Body.String())
+	}
+	var created map[string]any
+	testutil.DecodeJSON(t, w, &created)
+	if created["mikrotik_name"] != "ali-reza01" {
+		t.Fatalf("name: %+v", created)
+	}
+
+	w = testutil.DoJSON(t, h, http.MethodGet, "/api/v1/vpn-users", nil, mgrToken)
+	if w.Code != http.StatusOK {
+		t.Fatal(w.Body.String())
+	}
+	var list map[string]any
+	testutil.DecodeJSON(t, w, &list)
+	items, _ := list["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("items: %+v", list)
+	}
+}
+
+func TestManager_quotaExceeded_onCreate(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	_, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 3)
+
+	body := map[string]any{
+		"local_name": "a1", "password": "Secret123", "shared_users": 2,
+		"assign_profile": true,
+	}
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/vpn-users", body, mgrToken)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("first user: %d %s", w.Code, w.Body.String())
+	}
+	// quota=3, first user uses 2 slots — second with assign needs +2 → 409
+	body["local_name"] = "a2"
+	w = testutil.DoJSON(t, h, http.MethodPost, "/api/v1/vpn-users", body, mgrToken)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected QUOTA_EXCEEDED 409 on second user, got %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestManager_assignProfile_renewalWhenQuotaFull(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	_, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 2)
+
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/vpn-users", map[string]any{
+		"local_name": "only", "password": "Secret123", "shared_users": 2,
+		"assign_profile": true,
+	}, mgrToken)
+	if w.Code != http.StatusCreated {
+		t.Fatal(w.Body.String())
+	}
+	var created map[string]any
+	testutil.DecodeJSON(t, w, &created)
+	id := int(created["id"].(float64))
+
+	// renewal (assign again) should succeed even when quota is full
+	w = testutil.DoJSON(t, h, http.MethodPost, "/api/v1/vpn-users/"+strconv.Itoa(id)+"/assign-profile", map[string]any{
+		"profile_name": "profile-open-2M-30d",
+	}, mgrToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("renewal assign: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAdmin_renewals_orphanScope_and_settle(t *testing.T) {
+	application, _, fake := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	mid, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+
+	// manager user with activation
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/vpn-users", map[string]any{
+		"local_name": "u1", "password": "Secret123", "shared_users": 1, "assign_profile": true,
+	}, mgrToken)
+	if w.Code != http.StatusCreated {
+		t.Fatal(w.Body.String())
+	}
+
+	// orphan on router only (no DB meta) — renewals orphan scope uses manager_id in DB
+	_ = fake.AddUser("guest01", "Secret123", "", 1)
+
+	w = testutil.DoJSON(t, h, http.MethodGet, "/api/v1/admin/renewals", nil, adminToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("orphan renewals: %d %s", w.Code, w.Body.String())
+	}
+	var orphanResp map[string]any
+	testutil.DecodeJSON(t, w, &orphanResp)
+	scope, _ := orphanResp["scope"].(map[string]any)
+	if scope["orphan"] != true {
+		t.Fatalf("scope: %+v", scope)
+	}
+
+	w = testutil.DoJSON(t, h, http.MethodGet, "/api/v1/admin/renewals?manager_id="+strconv.FormatInt(mid, 10), nil, adminToken)
+	if w.Code != http.StatusOK {
+		t.Fatal(w.Body.String())
+	}
+	var mgrResp map[string]any
+	testutil.DecodeJSON(t, w, &mgrResp)
+	items, _ := mgrResp["items"].([]any)
+	if len(items) < 1 {
+		t.Fatalf("manager renewals: %+v", mgrResp)
+	}
+	first := items[0].(map[string]any)
+	actID := int(first["id"].(float64))
+	w = testutil.DoJSON(t, h, http.MethodPost, "/api/v1/admin/renewals/settle-through", map[string]any{
+		"through_activation_id": actID, "manager_id": mid,
+	}, adminToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("settle: %d %s", w.Code, w.Body.String())
+	}
+	var settle map[string]any
+	testutil.DecodeJSON(t, w, &settle)
+	if settle["updated_count"].(float64) < 1 {
+		t.Fatalf("settle: %+v", settle)
+	}
+}
+
+func TestManager_cannotSettle(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	_, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/admin/renewals/settle-through", map[string]any{
+		"through_activation_id": 1,
+	}, mgrToken)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("manager settle: %d", w.Code)
+	}
+}
+
+func TestAuth_invalidCredentials(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/auth/login", map[string]string{
+		"username": "admin", "password": "wrong",
+	}, "")
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d", w.Code)
+	}
+}
