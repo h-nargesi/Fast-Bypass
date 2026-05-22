@@ -30,21 +30,17 @@ func ValidVPN(pw string) bool {
 }
 
 func ValidPanel(pw string) bool {
-	if len(pw) < 3 {
+	if len(pw) < 8 {
 		return false
 	}
-	return true
-	// if len(pw) < 8 {
-	// 	return false
-	// }
-	// var letter, digit bool
-	// for _, r := range pw {
-	// 	if unicode.IsLetter(r) {
-	// 		letter = true
-	// 	}
-	// 	if unicode.IsDigit(r) {
-	// 		digit = true
-	// 	}
-	// }
-	// return letter && digit
+	var letter, digit bool
+	for _, r := range pw {
+		if unicode.IsLetter(r) {
+			letter = true
+		}
+		if unicode.IsDigit(r) {
+			digit = true
+		}
+	}
+	return letter && digit
 }
