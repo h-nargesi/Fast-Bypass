@@ -92,12 +92,16 @@ func (a *App) HandleAdminListVPNUsers(w http.ResponseWriter, r *http.Request) {
 		}
 		mid, dn, un, sl, mismatch := a.enrichOwner(ctx, reg, u.Name, u.Comment)
 		profs, _ := a.MT.ListUserProfiles(u.Name)
-		items = append(items, map[string]any{
+		item := map[string]any{
 			"mikrotik_name": u.Name, "shared_users": u.SharedUsers,
 			"mikrotik_comment": u.Comment, "manager_id": mid,
 			"manager_display_name": dn, "manager_username": un, "manager_slug": sl,
 			"owner_mismatch": mismatch, "profiles": profileDTOs(profs),
-		})
+		}
+		if meta, err := a.Store.FindVPNMetaByName(ctx, u.Name); err == nil {
+			item["id"] = meta.ID
+		}
+		items = append(items, item)
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }

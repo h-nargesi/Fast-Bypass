@@ -1,0 +1,137 @@
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { catchError, of } from 'rxjs';
+import { ApiClient } from '../../../core/api/api-client.service';
+import { AdminVpnListItem } from '../../../core/models';
+import { AdminService, AdminVpnService } from '../../../core/services/vpn-user.service';
+import { ProfileStateChipComponent } from '../../../shared/components/profile-state-chip/profile-state-chip.component';
+import { primaryProfileState } from '../../../shared/utils/profile-active';
+import { UI_MESSAGES } from '../../../core/i18n/messages';
+import { ManagerRow } from '../../../core/models';
+
+@Component({
+  selector: 'app-admin-user-list',
+  standalone: true,
+  imports: [FormsModule, RouterLink, ProfileStateChipComponent],
+  template: `
+    <div class="toolbar">
+      <h2 class="page-title">همه کاربران VPN</h2>
+      <button type="button" class="btn" (click)="load(true)">بروزرسانی</button>
+    </div>
+    <div class="filters card">
+      <label>
+        مدیر
+        <select [(ngModel)]="filterMode" (ngModelChange)="onFilterChange()" name="fm">
+          <option value="orphan">بدون مدیر</option>
+          <option value="all">همه (بدون فیلتر مالک)</option>
+          @for (m of managers(); track m.id) {
+            <option [value]="'m:' + m.id">{{ m.display_name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+    @if (error()) {
+      <p class="banner err">{{ error() }}</p>
+    }
+    <div class="card table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>نام</th>
+            <th>مدیر</th>
+            <th>وضعیت</th>
+            <th>comment</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of items(); track u.mikrotik_name) {
+            <tr [class.warn-row]="u.owner_mismatch">
+              <td>{{ u.mikrotik_name }}</td>
+              <td>
+                @if (u.manager_display_name) {
+                  {{ u.manager_display_name }}
+                  @if (u.owner_mismatch) { <span class="warn-tag">⚠</span> }
+                } @else {
+                  <span class="orphan">{{ msg.orphanLabel }}</span>
+                }
+              </td>
+              <td><app-profile-state-chip [state]="stateOf(u)" /></td>
+              <td dir="ltr" class="mono">{{ u.mikrotik_comment || '—' }}</td>
+              <td>
+                @if (u.id) {
+                  <a [routerLink]="['/admin/users', u.id]">جزئیات</a>
+                } @else {
+                  —
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  `,
+  styles: `
+    .orphan {
+      color: #666;
+      font-size: 0.85rem;
+    }
+    .warn-row {
+      background: #fffde7;
+    }
+    .warn-tag {
+      color: #f57f17;
+    }
+    .mono {
+      font-family: ui-monospace, monospace;
+      font-size: 0.82rem;
+    }
+  `,
+})
+export class AdminUserListComponent implements OnInit {
+  private readonly vpn = inject(AdminVpnService);
+  private readonly admin = inject(AdminService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+
+  readonly msg = UI_MESSAGES;
+  readonly items = signal<AdminVpnListItem[]>([]);
+  readonly managers = signal<ManagerRow[]>([]);
+  readonly error = signal('');
+  filterMode = 'orphan';
+
+  ngOnInit(): void {
+    this.admin.listManagers().subscribe((r) => this.managers.set(r.items));
+    this.route.queryParams.subscribe((q) => {
+      if (q['orphan'] === 'true') this.filterMode = 'orphan';
+      this.load(false);
+    });
+  }
+
+  onFilterChange(): void {
+    const qp: Record<string, string> = {};
+    if (this.filterMode === 'orphan') qp['orphan'] = 'true';
+    void this.router.navigate([], { queryParams: qp });
+    this.load(false);
+  }
+
+  load(refresh: boolean): void {
+    const opts: { refresh?: boolean; manager_id?: number; orphan?: boolean } = { refresh };
+    if (this.filterMode === 'orphan') {
+      opts.orphan = true;
+    } else if (this.filterMode.startsWith('m:')) {
+      opts.manager_id = Number(this.filterMode.slice(2));
+    }
+    this.vpn.list(opts).pipe(
+      catchError((e) => {
+        this.error.set(ApiClient.mapError(e));
+        return of({ items: [] });
+      }),
+    ).subscribe((res) => this.items.set(res.items));
+  }
+
+  stateOf(u: AdminVpnListItem): string {
+    return primaryProfileState(u.profiles ?? []);
+  }
+}

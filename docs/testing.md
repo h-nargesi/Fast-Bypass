@@ -74,9 +74,23 @@ npm run test:ci   # یک‌بار، برای CI
 | `src/app/core/i18n/messages.spec.ts` | پیام‌های فارسی UI و نگاشت خطای API |
 | `src/app/core/date/jalali.spec.ts` | تاریخ شمسی با `Asia/Tehran` |
 | `src/app/core/format/currency.spec.ts` | مبلغ با جداکننده هزارگان + «ریال» |
+| `src/app/core/api/api-client.spec.ts` | `ApiClient.mapError` — خطاهای فارسی |
+| `src/app/core/auth/token-storage.spec.ts` | ذخیره/پاک‌سازی JWT در session |
+| `src/app/core/auth/auth.service.spec.ts` | login و `homeRoute` |
+| `src/app/core/auth/auth.guard.spec.ts` | گاردهای guest/auth/admin/manager |
+| `src/app/core/services/vpn-user.service.spec.ts` | درخواست‌های VPN، renewals، managers |
 | `src/app/shared/pipes/jalali-date.pipe.spec.ts` | pipe نمایش تاریخ |
+| `src/app/shared/utils/profile-active.spec.ts` | وضعیت فعال پروفایل |
+| `src/app/shared/services/toast.service.spec.ts` | toast فارسی |
 | `src/app/shared/components/confirm-dialog/*.spec.ts` | modal تأیید (نقش `alertdialog`، دکمه تأیید/انصراف) |
-| `src/app/app.spec.ts` | عنوان فارسی پوستهٔ اصلی |
+| `src/app/shared/components/profile-state-chip/*.spec.ts` | chip وضعیت پروفایل |
+| `src/app/shared/components/quota-badge/*.spec.ts` | نمایش سقف quota |
+| `src/app/shared/components/copy-field/*.spec.ts` | کپی فیلد + toast |
+| `src/app/shared/components/connection-bundle/*.spec.ts` | کارت اتصال مشتری (تب‌ها، پیش‌نمایش) |
+| `src/app/features/auth/login/*.spec.ts` | فرم ورود و POST `/auth/login` |
+| `src/app/features/manager/dashboard/*.spec.ts` | داشبورد مدیر + API |
+| `src/app/app.spec.ts` | پوسته، nav مدیر/ادمین، مخفی در login |
+| `src/app/core/layout/document-locale.spec.ts` | قرارداد `lang`/`dir` سند |
 
 ### پوشش چک‌لیست فاز ۱ (frontend)
 
@@ -87,11 +101,15 @@ npm run test:ci   # یک‌بار، برای CI
 | تاریخ شمسی | ✓ |
 | modal تأیید حذف | ✓ |
 | فرمت مبلغ ریال | ✓ |
+| ورود / JWT / گارد مسیر | ✓ |
+| داشبورد مدیر (quota + لیست) | ✓ |
+| کارت اتصال مشتری | ✓ |
+| سرویس‌های API (VPN، renewals، managers) | ✓ |
 
 **خارج پوشش تست frontend (فاز ۱):**
 
 - E2E UI با backend/روتر واقعی (تست backend+روتر در `test-vm` زیر)
-- تمام صفحات و جریان‌های [user-flows.md](user-flows.md) (پس از پیاده‌سازی کامل UI)
+- E2E تمام جریان‌های [user-flows.md](user-flows.md) با مرورگر (Playwright/Cypress)
 - ویرایش `PATCH /admin/vpn-users/:id` — **هنوز پیاده نشده**
 - لاگ نکردن password — بازبینی دستی / lint
 - timezone `Asia/Tehran` در assert — سرور تست `TZ=UTC`؛ رفتار parse در production با env

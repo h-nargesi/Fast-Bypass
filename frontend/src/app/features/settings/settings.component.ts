@@ -1,0 +1,116 @@
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { catchError, of } from 'rxjs';
+import { ApiClient } from '../../core/api/api-client.service';
+import { AuthService, ProfileService } from '../../core/auth/auth.service';
+import { AdminProfile, ManagerProfile, MeProfile } from '../../core/models';
+import { ToastService } from '../../shared/services/toast.service';
+
+@Component({
+  selector: 'app-settings',
+  standalone: true,
+  imports: [FormsModule],
+  template: `
+    <h2 class="page-title">تنظیمات حساب</h2>
+    @if (error()) {
+      <p class="banner err">{{ error() }}</p>
+    }
+    @if (profile(); as p) {
+      <section class="card">
+        <h3>اطلاعات (فقط خواندنی)</h3>
+        <dl class="meta">
+          <dt>نام کاربری</dt><dd>{{ p.username }}</dd>
+          @if (isManager(p)) {
+            <dt>پیشوند (slug)</dt><dd>{{ p.slug }}</dd>
+            <dt>سقف</dt><dd>{{ p.quota }} — مصرف: {{ p.used_quota }}</dd>
+          }
+        </dl>
+      </section>
+      @if (isManager(p)) {
+        <section class="card form">
+          <h3>نام نمایشی</h3>
+          <form (ngSubmit)="saveName()">
+            <input [(ngModel)]="displayName" name="dn" required />
+            <button type="submit" class="btn primary">ذخیره</button>
+          </form>
+        </section>
+      }
+      <section class="card form">
+        <h3>تغییر رمز</h3>
+        <form (ngSubmit)="changePassword()">
+          <label>رمز فعلی <input type="password" [(ngModel)]="currentPw" name="cp" required /></label>
+          <label>رمز جدید <input type="password" [(ngModel)]="newPw" name="np" required /></label>
+          <button type="submit" class="btn primary">تغییر رمز</button>
+        </form>
+      </section>
+    }
+  `,
+  styles: `
+    .meta {
+      display: grid;
+      grid-template-columns: 8rem 1fr;
+      gap: 0.35rem 1rem;
+      margin: 0;
+    }
+    dt {
+      color: #666;
+      margin: 0;
+    }
+    dd {
+      margin: 0;
+      font-weight: 600;
+    }
+  `,
+})
+export class SettingsComponent implements OnInit {
+  private readonly profileSvc = inject(ProfileService);
+  private readonly auth = inject(AuthService);
+  private readonly toast = inject(ToastService);
+
+  readonly profile = signal<MeProfile | null>(null);
+  readonly error = signal('');
+  displayName = '';
+  currentPw = '';
+  newPw = '';
+
+  ngOnInit(): void {
+    this.profileSvc.getMe().subscribe((p) => {
+      this.profile.set(p);
+      if ('display_name' in p) {
+        this.displayName = (p as ManagerProfile).display_name;
+      }
+    });
+  }
+
+  isManager(p: MeProfile): p is ManagerProfile {
+    return 'slug' in p;
+  }
+
+  saveName(): void {
+    if (!this.auth.isManager()) return;
+    this.profileSvc.patchDisplayName(this.displayName).pipe(
+      catchError((e) => {
+        this.error.set(ApiClient.mapError(e));
+        return of(null);
+      }),
+    ).subscribe((p) => {
+      if (p) {
+        this.profile.set(p);
+        this.toast.show('ذخیره شد');
+      }
+    });
+  }
+
+  changePassword(): void {
+    this.profileSvc.changePassword(this.currentPw, this.newPw).pipe(
+      catchError((e) => {
+        this.error.set(ApiClient.mapError(e));
+        return of(null);
+      }),
+    ).subscribe(() => {
+      this.toast.show('رمز تغییر کرد');
+      this.currentPw = '';
+      this.newPw = '';
+    });
+  }
+}

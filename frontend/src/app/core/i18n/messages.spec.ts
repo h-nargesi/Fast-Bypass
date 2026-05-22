@@ -17,6 +17,12 @@ describe('UI messages (Persian)', () => {
     expect(UI_MESSAGES.emptyRenewals).toMatch(/تمدید/);
   });
 
+  it('auth and orphan labels are Persian', () => {
+    expect(UI_MESSAGES.login).toBe('ورود');
+    expect(UI_MESSAGES.logout).toBe('خروج');
+    expect(UI_MESSAGES.orphanLabel).toBe('بدون مدیر');
+  });
+
   it('currency suffix is ریال', () => {
     expect(UI_MESSAGES.currencySuffix).toBe('ریال');
   });
