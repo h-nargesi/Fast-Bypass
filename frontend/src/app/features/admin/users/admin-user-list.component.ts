@@ -3,17 +3,17 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client.service';
-import { AdminVpnListItem } from '../../../core/models';
+import { AdminVpnListItem, ManagerRow } from '../../../core/models';
 import { AdminService, AdminVpnService } from '../../../core/services/vpn-user.service';
 import { ProfileStateChipComponent } from '../../../shared/components/profile-state-chip/profile-state-chip.component';
 import { primaryProfileState } from '../../../shared/utils/profile-active';
 import { UI_MESSAGES } from '../../../core/i18n/messages';
-import { ManagerRow } from '../../../core/models';
+import { MATERIAL_FORM } from '../../../shared/ui/material-form';
 
 @Component({
   selector: 'app-admin-user-list',
   standalone: true,
-  imports: [FormsModule, RouterLink, ProfileStateChipComponent],
+  imports: [FormsModule, RouterLink, ProfileStateChipComponent, ...MATERIAL_FORM],
   template: `
     <div class="toolbar">
       <h2 class="page-title">همه کاربران VPN</h2>
@@ -23,16 +23,16 @@ import { ManagerRow } from '../../../core/models';
       </div>
     </div>
     <div class="filters card">
-      <label>
-        مدیر
-        <select [(ngModel)]="filterMode" (ngModelChange)="onFilterChange()" name="fm">
-          <option value="orphan">بدون مدیر</option>
-          <option value="all">همه (بدون فیلتر مالک)</option>
+      <mat-form-field appearance="outline">
+        <mat-label>مدیر</mat-label>
+        <mat-select [(ngModel)]="filterMode" (ngModelChange)="onFilterChange()" name="fm">
+          <mat-option value="orphan">بدون مدیر</mat-option>
+          <mat-option value="all">همه (بدون فیلتر مالک)</mat-option>
           @for (m of managers(); track m.id) {
-            <option [value]="'m:' + m.id">{{ m.display_name }}</option>
+            <mat-option [value]="'m:' + m.id">{{ m.display_name }}</mat-option>
           }
-        </select>
-      </label>
+        </mat-select>
+      </mat-form-field>
     </div>
     @if (error()) {
       <p class="banner err">{{ error() }}</p>

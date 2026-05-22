@@ -5,7 +5,7 @@ import { Component, input } from '@angular/core';
   standalone: true,
   template: `
     <div class="quota" [class.warn]="available() <= 0">
-      <span class="label">سقف اتصال</span>
+      <span class="label">سقف کاربر</span>
       <span class="nums">{{ used() }} / {{ quota() }}</span>
       <span class="avail">باقی‌مانده: {{ available() }}</span>
     </div>

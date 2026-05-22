@@ -1,15 +1,17 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { catchError, EMPTY } from 'rxjs';
+import { MatButtonModule } from '@angular/material/button';
 import { ApiClient } from '../../core/api/api-client.service';
 import { AuthService, ProfileService } from '../../core/auth/auth.service';
 import { AdminProfile, ManagerProfile, MeProfile } from '../../core/models';
 import { ToastService } from '../../shared/services/toast.service';
+import { MATERIAL_FORM } from '../../shared/ui/material-form';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, MatButtonModule, ...MATERIAL_FORM],
   template: `
     <h2 class="page-title">تنظیمات حساب</h2>
     @if (error()) {
@@ -27,20 +29,29 @@ import { ToastService } from '../../shared/services/toast.service';
         </dl>
       </section>
       @if (isManager(p)) {
-        <section class="card form">
+        <section class="card">
           <h3>نام نمایشی</h3>
-          <form (ngSubmit)="saveName()">
-            <input [(ngModel)]="displayName" name="dn" required />
-            <button type="submit" class="btn primary">ذخیره</button>
+          <form class="form-stack" (ngSubmit)="saveName()">
+            <mat-form-field appearance="outline">
+              <mat-label>نام نمایشی</mat-label>
+              <input matInput [(ngModel)]="displayName" name="dn" required />
+            </mat-form-field>
+            <button type="submit" mat-flat-button color="primary">ذخیره</button>
           </form>
         </section>
       }
-      <section class="card form">
+      <section class="card">
         <h3>تغییر رمز</h3>
-        <form (ngSubmit)="changePassword()">
-          <label>رمز فعلی <input type="password" [(ngModel)]="currentPw" name="cp" required /></label>
-          <label>رمز جدید <input type="password" [(ngModel)]="newPw" name="np" required /></label>
-          <button type="submit" class="btn primary">تغییر رمز</button>
+        <form class="form-stack" (ngSubmit)="changePassword()">
+          <mat-form-field appearance="outline">
+            <mat-label>رمز فعلی</mat-label>
+            <input matInput type="password" class="ltr-input" [(ngModel)]="currentPw" name="cp" required />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>رمز جدید</mat-label>
+            <input matInput type="password" class="ltr-input" [(ngModel)]="newPw" name="np" required />
+          </mat-form-field>
+          <button type="submit" mat-flat-button color="primary">تغییر رمز</button>
         </form>
       </section>
     }

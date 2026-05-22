@@ -1,0 +1,19 @@
+@use '@angular/material' as mat;
+
+html {
+  height: 100%;
+
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: (
+        plain-family: Vazirmatn,
+        brand-family: Vazirmatn,
+      ),
+      density: 0,
+    )
+  );
+}

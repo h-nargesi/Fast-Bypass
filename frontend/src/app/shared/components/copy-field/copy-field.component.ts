@@ -19,6 +19,9 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
         @if (secret()) {
           <button type="button" class="link" (click)="toggle()">{{ revealed() ? 'پنهان' : 'نمایش' }}</button>
         }
+        @if (url()) {
+            <a class="ext" [href]="url()" target="_blank" rel="noopener">باز کردن لینک</a>
+        }
         <button type="button" class="link" (click)="copy()">کپی</button>
       </div>
     </div>
@@ -65,6 +68,7 @@ export class CopyFieldComponent {
   private readonly toast = inject(ToastService);
 
   label = input('');
+  url = input<string | null>('');
   value = input<string | null>('');
   secret = input(false);
   ltr = input(false);

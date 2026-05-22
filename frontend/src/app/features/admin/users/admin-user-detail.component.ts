@@ -11,8 +11,10 @@ import { ProfileStateChipComponent } from '../../../shared/components/profile-st
 import { JalaliDatePipe } from '../../../shared/pipes/jalali-date.pipe';
 import { formatRial } from '../../../core/format/currency';
 import { environment } from '../../../../environments/environment';
+import { MatButtonModule } from '@angular/material/button';
 import { ToastService } from '../../../shared/services/toast.service';
 import { UI_MESSAGES } from '../../../core/i18n/messages';
+import { MATERIAL_FORM } from '../../../shared/ui/material-form';
 
 @Component({
   selector: 'app-admin-user-detail',
@@ -20,10 +22,12 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
   imports: [
     FormsModule,
     RouterLink,
+    MatButtonModule,
     ConnectionBundleComponent,
     ConfirmDialogComponent,
     ProfileStateChipComponent,
     JalaliDatePipe,
+    ...MATERIAL_FORM,
   ],
   template: `
     <a routerLink="/admin/users" class="back">← بازگشت</a>
@@ -54,30 +58,52 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
         }
       </section>
       <app-connection-bundle [bundle]="u.connection_bundle" [downloadOvpn]="downloadFn" />
-      <section class="card">
-        <h3>ویرایش</h3>
-        <form (ngSubmit)="saveEdit()">
-          <p><label>رمز جدید VPN <input type="password" [(ngModel)]="editPassword" name="pw" /></label></p>
-          <p><label>اتصال همزمان <input type="number" min="1" [(ngModel)]="editShared" name="su" /></label></p>
-          <p><label>اطلاعات تماس <input [(ngModel)]="editContactInfo" name="cn" /></label></p>
-          <p><label>یادداشت <textarea [(ngModel)]="editNotes" name="nt" rows="2"></textarea></label></p>
-          <p><label class="check"><input type="checkbox" [(ngModel)]="routerEnabled" name="ren" /> فعال</label></p>
-          @if (u.manager_id && u.owner_mismatch) {
-            <p class="hint">
-              برای هم‌خوان‌سازی DB با مالک روتر:
-              <button type="button" class="link" (click)="syncManagerId()">ثبت manager_id</button>
-            </p>
-          }
-          <button type="submit" class="btn primary" [disabled]="saving()">ذخیره</button>
-        </form>
-      </section>
+      <form class="card form-stack" (ngSubmit)="saveEdit()">
+        <mat-checkbox [(ngModel)]="routerEnabled" name="ren">فعال</mat-checkbox>
+
+        <mat-form-field appearance="outline">
+          <mat-label>رمز VPN</mat-label>
+          <input matInput type="password" class="ltr-input" [(ngModel)]="editPassword" name="pw" />
+          <mat-hint>خالی بگذارید تا رمز تغییر نکند.</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>اتصال همزمان</mat-label>
+          <input matInput type="number" min="1" [(ngModel)]="editShared" name="su" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>اطلاعات تماس</mat-label>
+          <input matInput [(ngModel)]="editContactInfo" name="cn" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>یادداشت</mat-label>
+          <textarea matInput [(ngModel)]="editNotes" name="nt" rows="2"></textarea>
+        </mat-form-field>
+
+        @if (u.manager_id && u.owner_mismatch) {
+          <p class="hint">
+            برای هم‌خوان‌سازی DB با مالک روتر:
+            <button type="button" class="link" (click)="syncManagerId()">ثبت manager_id</button>
+          </p>
+        }
+
+        <button type="submit" mat-flat-button color="primary" [disabled]="saving()">ذخیره تغییرات</button>
+      </form>
       <section class="card">
         <h3>تمدید / انتساب پروفایل</h3>
-        <form (ngSubmit)="assign()">
+        <form class="form-stack" (ngSubmit)="assign()">
           <p class="profile-name">پروفایل: <code dir="ltr">{{ defaultProfile }}</code></p>
-          <label>مبلغ (اختیاری) <input type="number" [(ngModel)]="assignAmount" name="amt" /></label>
-          <label>یادداشت <input [(ngModel)]="assignNote" name="an" /></label>
-          <button type="submit" class="btn primary">تمدید</button>
+          <mat-form-field appearance="outline">
+            <mat-label>مبلغ (اختیاری)</mat-label>
+            <input matInput type="number" [(ngModel)]="assignAmount" name="amt" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>یادداشت</mat-label>
+            <input matInput [(ngModel)]="assignNote" name="an" />
+          </mat-form-field>
+          <button type="submit" mat-flat-button color="primary">تمدید</button>
         </form>
       </section>
       <section class="card">

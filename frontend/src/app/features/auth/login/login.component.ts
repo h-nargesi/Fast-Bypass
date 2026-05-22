@@ -2,36 +2,42 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { catchError, of } from 'rxjs';
+import { MatButtonModule } from '@angular/material/button';
 import { ApiClient } from '../../../core/api/api-client.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { UI_MESSAGES } from '../../../core/i18n/messages';
+import { MATERIAL_FORM } from '../../../shared/ui/material-form';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, MatButtonModule, ...MATERIAL_FORM],
   template: `
     <div class="login-wrap">
-      <form class="card login-card" (ngSubmit)="submit()">
+      <form class="card login-card form-stack" (ngSubmit)="submit()">
         <h2>{{ msg.login }}</h2>
-        <label>
-          نام کاربری
-          <input name="username" [(ngModel)]="username" autocomplete="username" required />
-        </label>
-        <label>
-          رمز عبور
+        <mat-form-field appearance="outline">
+          <mat-label>نام کاربری</mat-label>
+          <input matInput name="username" [(ngModel)]="username" autocomplete="username" class="ltr-input" required />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>رمز عبور</mat-label>
           <input
+            matInput
             name="password"
             type="password"
+            class="ltr-input"
             [(ngModel)]="password"
             autocomplete="current-password"
             required
           />
-        </label>
+        </mat-form-field>
         @if (error()) {
-          <p class="err">{{ error() }}</p>
+          <p class="banner err">{{ error() }}</p>
         }
-        <button type="submit" class="btn primary" [disabled]="loading()">{{ msg.login }}</button>
+        <button type="submit" mat-flat-button color="primary" class="submit-btn" [disabled]="loading()">
+          {{ msg.login }}
+        </button>
       </form>
     </div>
   `,
@@ -43,33 +49,13 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
     }
     .login-card {
       width: 100%;
-      max-width: 22rem;
+      max-width: 24rem;
     }
     .login-card h2 {
-      margin: 0 0 1rem;
+      margin: 0 0 0.5rem;
       text-align: center;
     }
-    label {
-      display: block;
-      margin-bottom: 0.85rem;
-      font-size: 0.9rem;
-    }
-    input {
-      display: block;
-      width: 100%;
-      margin-top: 0.3rem;
-      padding: 0.5rem 0.65rem;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font: inherit;
-      box-sizing: border-box;
-    }
-    .err {
-      color: #c62828;
-      font-size: 0.88rem;
-      margin: 0 0 0.75rem;
-    }
-    .btn.primary {
+    .submit-btn {
       width: 100%;
       margin-top: 0.25rem;
     }

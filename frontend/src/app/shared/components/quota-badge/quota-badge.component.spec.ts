@@ -16,7 +16,7 @@ describe('QuotaBadgeComponent', () => {
 
   it('shows quota numbers in Persian UI', () => {
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toMatch(/سقف اتصال/);
+    expect(text).toMatch(/سقف کاربر/);
     expect(text).toContain('8');
     expect(text).toContain('10');
     expect(text).toMatch(/باقی‌مانده/);

@@ -131,7 +131,7 @@ func (a *App) HandleCreateVPNUser(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := a.createVPNUser(r.Context(), mgr, req)
 	if errors.Is(err, errQuotaExceeded) {
-		httpx.WriteError(w, http.StatusConflict, "QUOTA_EXCEEDED", "سقف اتصال همزمان پر است")
+		httpx.WriteError(w, http.StatusConflict, "QUOTA_EXCEEDED", "سقف تعداد کاربران (اتصال همزمان) پر است")
 		return
 	}
 	if errors.Is(err, errNameTaken) {

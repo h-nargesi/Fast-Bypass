@@ -47,10 +47,7 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
             [secret]="true"
             [ltr]="true"
           />
-          <app-copy-field label="لینک دانلود" [value]="bundle.openvpn_download_url" [ltr]="true" />
-          @if (bundle.openvpn_download_url) {
-            <a class="ext" [href]="bundle.openvpn_download_url" target="_blank" rel="noopener">باز کردن لینک</a>
-          }
+          <app-copy-field label="لینک دانلود" [url]="bundle.openvpn_download_url" [value]="bundle.openvpn_download_url" [ltr]="true" />
         } @else {
           <p class="section-title">ثابت سرویس</p>
           <app-copy-field

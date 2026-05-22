@@ -399,7 +399,7 @@ func (a *App) removeVPNProfile(meta *store.VPNUserMeta, profileRowID string) err
 func (a *App) writeVPNPatchError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, errQuotaExceeded):
-		httpx.WriteError(w, http.StatusConflict, "QUOTA_EXCEEDED", "سقف اتصال همزمان پر است")
+		httpx.WriteError(w, http.StatusConflict, "QUOTA_EXCEEDED", "سقف تعداد کاربران (اتصال همزمان) پر است")
 	case errors.Is(err, errOrphanNoOwner):
 		httpx.WriteError(w, http.StatusForbidden, "ORPHAN_NO_OWNER", "کاربر بدون مدیر — ابتدا مالک را در روتر مشخص کنید")
 	case errors.Is(err, errOwnerDBMismatch):

@@ -22,7 +22,7 @@ import { isProfileActive } from '../../../shared/utils/profile-active';
       @if (quota(); as q) {
         <app-quota-badge [quota]="q.quota" [used]="q.used" [available]="q.available" />
         @if (q.available <= 0) {
-          <p class="banner warn">سقف اتصال همزمان پر شده است.</p>
+          <p class="banner warn">سقف تعداد کاربران (اتصال همزمان) پر شده است.</p>
         }
       }
       <div class="stat card">

@@ -7,11 +7,12 @@ import { RenewalsService } from '../../../core/services/vpn-user.service';
 import { ProfileStateChipComponent } from '../../../shared/components/profile-state-chip/profile-state-chip.component';
 import { JalaliDatePipe } from '../../../shared/pipes/jalali-date.pipe';
 import { UI_MESSAGES } from '../../../core/i18n/messages';
+import { MATERIAL_FORM } from '../../../shared/ui/material-form';
 
 @Component({
   selector: 'app-manager-renewals',
   standalone: true,
-  imports: [FormsModule, ProfileStateChipComponent, JalaliDatePipe],
+  imports: [FormsModule, ProfileStateChipComponent, JalaliDatePipe, ...MATERIAL_FORM],
   template: `
     <h2 class="page-title">تمدیدهای من</h2>
     @if (data(); as d) {
@@ -22,11 +23,14 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
         }
       </div>
       <div class="filters">
-        <select [(ngModel)]="settled" (ngModelChange)="load()" name="settled">
-          <option value="">تسویه‌نشده</option>
-          <option value="settled">تسویه‌شده</option>
-          <option value="all">همه</option>
-        </select>
+        <mat-form-field appearance="outline">
+          <mat-label>وضعیت تسویه</mat-label>
+          <mat-select [(ngModel)]="settled" (ngModelChange)="load()" name="settled">
+            <mat-option value="">تسویه‌نشده</mat-option>
+            <mat-option value="settled">تسویه‌شده</mat-option>
+            <mat-option value="all">همه</mat-option>
+          </mat-select>
+        </mat-form-field>
       </div>
     }
     @if (error()) {

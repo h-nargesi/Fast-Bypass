@@ -1,29 +1,47 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { catchError, of } from 'rxjs';
+import { MatButtonModule } from '@angular/material/button';
 import { ApiClient } from '../../../core/api/api-client.service';
 import { ManagerRow } from '../../../core/models';
 import { AdminService } from '../../../core/services/vpn-user.service';
+import { MATERIAL_FORM } from '../../../shared/ui/material-form';
+
 @Component({
   selector: 'app-managers',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, MatButtonModule, ...MATERIAL_FORM],
   template: `
     <h2 class="page-title">مدیران</h2>
     @if (error()) {
       <p class="banner err">{{ error() }}</p>
     }
-    <section class="card form">
+    <section class="card">
       <h3>مدیر جدید</h3>
-      <form (ngSubmit)="create()">
-        <div class="grid">
-          <label>نام کاربری <input [(ngModel)]="newUser.username" name="nu" required /></label>
-          <label>رمز <input type="password" [(ngModel)]="newUser.password" name="np" required /></label>
-          <label>نام نمایشی <input [(ngModel)]="newUser.display_name" name="nd" required /></label>
-          <label>slug <input [(ngModel)]="newUser.slug" name="ns" required /></label>
-          <label>سقف <input type="number" min="1" [(ngModel)]="newUser.quota" name="nq" /></label>
+      <form class="form-grid" (ngSubmit)="create()">
+        <mat-form-field appearance="outline">
+          <mat-label>نام کاربری</mat-label>
+          <input matInput class="ltr-input" [(ngModel)]="newUser.username" name="nu" required />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>رمز</mat-label>
+          <input matInput type="password" class="ltr-input" [(ngModel)]="newUser.password" name="np" required />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>نام نمایشی</mat-label>
+          <input matInput [(ngModel)]="newUser.display_name" name="nd" required />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>slug</mat-label>
+          <input matInput class="ltr-input" [(ngModel)]="newUser.slug" name="ns" required />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>سقف</mat-label>
+          <input matInput type="number" min="1" [(ngModel)]="newUser.quota" name="nq" />
+        </mat-form-field>
+        <div class="form-grid-submit">
+          <button type="submit" mat-flat-button color="primary">ایجاد</button>
         </div>
-        <button type="submit" class="btn primary">ایجاد</button>
       </form>
     </section>
     <div class="card table-wrap">
@@ -45,7 +63,9 @@ import { AdminService } from '../../../core/services/vpn-user.service';
               <td>{{ m.display_name }}</td>
               <td>
                 @if (editId() === m.id) {
-                  <input dir="ltr" [(ngModel)]="editUsername" [name]="'u' + m.id" required />
+                  <mat-form-field appearance="outline" class="form-inline-field">
+                    <input matInput class="ltr-input" [(ngModel)]="editUsername" [name]="'u' + m.id" required />
+                  </mat-form-field>
                 } @else {
                   <span dir="ltr">{{ m.username }}</span>
                 }
@@ -53,7 +73,9 @@ import { AdminService } from '../../../core/services/vpn-user.service';
               <td dir="ltr">{{ m.slug }}</td>
               <td>
                 @if (editId() === m.id) {
-                  <input type="number" min="1" [(ngModel)]="editQuota" [name]="'q' + m.id" />
+                  <mat-form-field appearance="outline" class="form-inline-field">
+                    <input matInput type="number" min="1" [(ngModel)]="editQuota" [name]="'q' + m.id" />
+                  </mat-form-field>
                 } @else {
                   {{ m.quota }}
                 }
@@ -61,27 +83,25 @@ import { AdminService } from '../../../core/services/vpn-user.service';
               <td>{{ m.used_quota }}</td>
               <td>
                 @if (editId() === m.id) {
-                  <label class="inline-check">
-                    <input type="checkbox" [(ngModel)]="editActive" [name]="'a' + m.id" />
-                    فعال
-                  </label>
+                  <mat-checkbox [(ngModel)]="editActive" [name]="'a' + m.id">فعال</mat-checkbox>
                 } @else {
                   {{ m.is_active ? 'بله' : 'خیر' }}
                 }
               </td>
               <td class="actions">
                 @if (editId() === m.id) {
-                  <label class="pw-field">
-                    رمز جدید
+                  <mat-form-field appearance="outline" class="form-inline-field">
+                    <mat-label>رمز جدید</mat-label>
                     <input
+                      matInput
                       type="password"
-                      dir="ltr"
+                      class="ltr-input"
                       [(ngModel)]="editPassword"
                       [name]="'p' + m.id"
                       placeholder="خالی = بدون تغییر"
                       autocomplete="new-password"
                     />
-                  </label>
+                  </mat-form-field>
                   <button type="button" class="link" (click)="saveEdit(m)">ذخیره</button>
                   <button type="button" class="link" (click)="editId.set(null)">انصراف</button>
                 } @else {
@@ -95,36 +115,16 @@ import { AdminService } from '../../../core/services/vpn-user.service';
     </div>
   `,
   styles: `
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-      gap: 0.75rem;
+    .form-grid-submit {
+      display: flex;
+      align-items: center;
+      grid-column: 1 / -1;
     }
     tr.inactive {
       opacity: 0.55;
     }
-    .inline-check {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      margin: 0;
-      font-size: 0.85rem;
-    }
-    .inline-check input {
-      width: auto;
-      margin: 0;
-    }
     .actions {
       min-width: 12rem;
-    }
-    .pw-field {
-      display: block;
-      margin: 0 0 0.35rem;
-      font-size: 0.8rem;
-    }
-    .pw-field input {
-      width: 100%;
-      margin-top: 0.2rem;
     }
   `,
 })

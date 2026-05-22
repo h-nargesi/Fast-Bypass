@@ -7,31 +7,32 @@ import { AdminService, RenewalsService } from '../../../core/services/vpn-user.s
 import { ProfileStateChipComponent } from '../../../shared/components/profile-state-chip/profile-state-chip.component';
 import { JalaliDatePipe } from '../../../shared/pipes/jalali-date.pipe';
 import { UI_MESSAGES } from '../../../core/i18n/messages';
+import { MATERIAL_FORM } from '../../../shared/ui/material-form';
 
 @Component({
   selector: 'app-admin-renewals',
   standalone: true,
-  imports: [FormsModule, ProfileStateChipComponent, JalaliDatePipe],
+  imports: [FormsModule, ProfileStateChipComponent, JalaliDatePipe, ...MATERIAL_FORM],
   template: `
     <h2 class="page-title">دفتر تمدیدها</h2>
     <div class="filters card">
-      <label>
-        مدیر
-        <select [(ngModel)]="managerKey" (ngModelChange)="load()" name="mgr">
-          <option value="orphan">بدون مدیر (پیش‌فرض)</option>
+      <mat-form-field appearance="outline">
+        <mat-label>مدیر</mat-label>
+        <mat-select [(ngModel)]="managerKey" (ngModelChange)="load()" name="mgr">
+          <mat-option value="orphan">بدون مدیر (پیش‌فرض)</mat-option>
           @for (m of managers(); track m.id) {
-            <option [value]="'m:' + m.id">{{ m.display_name }}</option>
+            <mat-option [value]="'m:' + m.id">{{ m.display_name }}</mat-option>
           }
-        </select>
-      </label>
-      <label>
-        تسویه
-        <select [(ngModel)]="settled" (ngModelChange)="load()" name="stl">
-          <option value="">تسویه‌نشده</option>
-          <option value="settled">تسویه‌شده</option>
-          <option value="all">همه</option>
-        </select>
-      </label>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>تسویه</mat-label>
+        <mat-select [(ngModel)]="settled" (ngModelChange)="load()" name="stl">
+          <mat-option value="">تسویه‌نشده</mat-option>
+          <mat-option value="settled">تسویه‌شده</mat-option>
+          <mat-option value="all">همه</mat-option>
+        </mat-select>
+      </mat-form-field>
     </div>
     @if (data(); as d) {
       <div class="summary card">

@@ -1,3 +1,9 @@
+@use './theme';
+@import '@fontsource/vazirmatn/400.css';
+@import '@fontsource/vazirmatn/500.css';
+@import '@fontsource/vazirmatn/600.css';
+@import '@fontsource/vazirmatn/700.css';
+
 html,
 body {
   margin: 0;
@@ -179,23 +185,46 @@ tr.row-disabled a {
   color: #666;
 }
 
-.form label {
-  display: block;
-  margin-bottom: 0.75rem;
-  font-size: 0.9rem;
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  mat-form-field {
+    width: 100%;
+  }
 }
 
-.form input,
-.form textarea,
-.form select,
-.filters select {
-  display: block;
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.5rem 1rem;
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.form-inline-field {
   width: 100%;
-  margin-top: 0.3rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font: inherit;
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none;
+  }
+}
+
+.prefix-chip {
+  background: var(--mat-sys-surface-variant, #eceff1);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  direction: ltr;
+  margin-inline-end: 0.35rem;
+}
+
+.ltr-input {
+  direction: ltr;
+  text-align: left;
 }
 
 .filters {
@@ -203,10 +232,11 @@ tr.row-disabled a {
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1rem;
-}
+  align-items: flex-start;
 
-.filters label {
-  min-width: 12rem;
+  mat-form-field {
+    min-width: 12rem;
+  }
 }
 
 .summary {
@@ -227,6 +257,7 @@ tr.row-disabled a {
 .hint {
   font-size: 0.85rem;
   color: #666;
+  margin: 0 0 0.5rem;
 }
 
 .muted {

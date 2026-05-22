@@ -53,6 +53,7 @@
               }
             ],
             "styles": [
+              "src/theme.scss",
               "src/styles.scss"
             ]
           },
