@@ -18,6 +18,10 @@ import { environment } from '../../../../environments/environment';
       <p class="banner err">{{ error() }}</p>
     }
     <form class="card form" (ngSubmit)="submit()">
+      <label class="check">
+        <input type="checkbox" [(ngModel)]="routerEnabled" name="ren" />
+        فعال
+      </label>
       <fieldset>
         <legend>نام کاربر VPN</legend>
         <div class="prefix-row">
@@ -32,10 +36,6 @@ import { environment } from '../../../../environments/environment';
       </label>
       <p class="hint">خالی بگذارید تا سرور رمز تصادفی بسازد.</p>
       <label>اتصال همزمان <input type="number" min="1" [(ngModel)]="sharedUsers" name="shared" /></label>
-      <label class="check">
-        <input type="checkbox" [(ngModel)]="routerEnabled" name="ren" />
-        فعال در روتر (User Manager)
-      </label>
       <label>اطلاعات تماس <input [(ngModel)]="contactInfo" name="cinfo" /></label>
       <label>یادداشت <textarea [(ngModel)]="notes" name="notes" rows="2"></textarea></label>
       <label class="check">
@@ -53,6 +53,7 @@ import { environment } from '../../../../environments/environment';
   `,
   styles: `
     .prefix-row {
+      direction: ltr;
       display: flex;
       gap: 0.35rem;
       align-items: center;
@@ -76,6 +77,9 @@ import { environment } from '../../../../environments/environment';
       display: flex;
       align-items: center;
       gap: 0.5rem;
+    }
+    input[type="password"] {
+      direction: ltr;
     }
   `,
 })

@@ -60,7 +60,7 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
           <h3>وضعیت روتر</h3>
           <label class="check">
             <input type="checkbox" [(ngModel)]="routerEnabled" name="ren" />
-            فعال در روتر (User Manager)
+            فعال
           </label>
         </section>
         <div class="edit-actions">
