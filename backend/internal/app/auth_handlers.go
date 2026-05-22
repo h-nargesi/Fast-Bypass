@@ -178,7 +178,7 @@ func (a *App) HandlePatchMe(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "display_name لازم است")
 			return
 		}
-		if err := a.Store.UpdateManager(ctx, c.ManagerID, req.DisplayName, nil, nil, nil); err != nil {
+		if err := a.Store.UpdateManager(ctx, c.ManagerID, nil, req.DisplayName, nil, nil, nil); err != nil {
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
@@ -229,7 +229,7 @@ func (a *App) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
-		if err := a.Store.UpdateManager(ctx, c.ManagerID, nil, nil, nil, &hash); err != nil {
+		if err := a.Store.UpdateManager(ctx, c.ManagerID, nil, nil, nil, nil, &hash); err != nil {
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}

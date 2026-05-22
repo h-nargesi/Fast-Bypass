@@ -303,19 +303,22 @@ Body ترکیبی:
 
 ```json
 {
+  "username": "ali.new",
   "display_name": "علی احمدی",
   "quota": 15,
-  "is_active": false
+  "is_active": false,
+  "password": "NewManager1"
 }
 ```
 
 
 | فیلد        | قانون                                                     |
 | ----------- | --------------------------------------------------------- |
+| `username`  | اختیاری — نام کاربری ورود؛ غیرخالی؛ یکتا (NOCASE)؛ `409 USERNAME_IN_USE` |
 | `quota`     | اگر کمتر از `used_quota` فعلی → `409 QUOTA_BELOW_USAGE`   |
 | `is_active` | `false` = ورود مدیر مسدود؛ کاربران VPN در روتر بدون تغییر |
 | `slug`      | فقط اگر آن مدیر هیچ VPN user ندارد؛ بدون همپوشانی با slugهای دیگر |
-| `password`  | اختیاری — reset رمز ورود پنل (بدون `current_password`)   |
+| `password`  | اختیاری — reset رمز ورود پنل (بدون `current_password`)؛ همان اعتبارسنجی پنل |
 
 ### Admin — renewals ledger
 

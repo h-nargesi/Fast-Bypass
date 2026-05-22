@@ -219,6 +219,7 @@ export class AdminService {
   patchManager(
     id: number,
     body: Partial<{
+      username: string;
       display_name: string;
       quota: number;
       is_active: boolean;

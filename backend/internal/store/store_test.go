@@ -57,12 +57,39 @@ func TestManagerCRUD_andSlug(t *testing.T) {
 		t.Fatal(err)
 	}
 	dn := "علی احمدی"
-	if err := st.UpdateManager(ctx, m.ID, &dn, nil, nil, nil); err != nil {
+	if err := st.UpdateManager(ctx, m.ID, nil, &dn, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	found, _ = st.FindManagerByID(ctx, m.ID)
 	if found.DisplayName != dn {
 		t.Fatalf("display_name = %q", found.DisplayName)
+	}
+}
+
+func TestUpdateManager_usernameAndPassword(t *testing.T) {
+	st, cleanup := openTestStore(t)
+	defer cleanup()
+	ctx := context.Background()
+	hash, _ := password.Hash("Manager1")
+	m := &Manager{Username: "ali", PasswordHash: hash, DisplayName: "علی", Slug: "ali", Quota: 10, IsActive: true}
+	if err := st.CreateManager(ctx, m); err != nil {
+		t.Fatal(err)
+	}
+	newUser := "ali-renamed"
+	newHash, _ := password.Hash("NewPass123")
+	if err := st.UpdateManager(ctx, m.ID, &newUser, nil, nil, nil, &newHash); err != nil {
+		t.Fatal(err)
+	}
+	found, err := st.FindManagerByUsername(ctx, "ali-renamed")
+	if err != nil || found.ID != m.ID {
+		t.Fatalf("username update: %+v err=%v", found, err)
+	}
+	if !password.Check(found.PasswordHash, "NewPass123") {
+		t.Fatal("password not updated")
+	}
+	_, err = st.FindManagerByUsername(ctx, "ali")
+	if err == nil {
+		t.Fatal("old username should not resolve")
 	}
 }
 

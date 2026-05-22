@@ -218,4 +218,28 @@ describe('AdminService', () => {
     expect(req.request.method).toBe('POST');
     req.flush({ id: 9 });
   });
+
+  it('patches manager username and password via PATCH /admin/managers/:id', () => {
+    const svc = TestBed.inject(AdminService);
+    svc
+      .patchManager(4, { username: 'ali2', password: 'ResetPass1', quota: 12, is_active: true })
+      .subscribe((m) => expect(m.username).toBe('ali2'));
+    const req = http.expectOne('/api/v1/admin/managers/4');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({
+      username: 'ali2',
+      password: 'ResetPass1',
+      quota: 12,
+      is_active: true,
+    });
+    req.flush({
+      id: 4,
+      username: 'ali2',
+      display_name: 'علی',
+      slug: 'ali',
+      quota: 12,
+      used_quota: 0,
+      is_active: true,
+    });
+  });
 });

@@ -504,6 +504,102 @@ func TestDownloadOvpn(t *testing.T) {
 	}
 }
 
+func TestAdmin_patchManager(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+
+	t.Run("username_and_password", func(t *testing.T) {
+		mgrID, _ := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+		w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mgrID, 10), map[string]any{
+			"username": "ali2",
+			"password": "ResetPass1",
+		}, adminToken)
+		if w.Code != http.StatusOK {
+			t.Fatalf("patch: %d %s", w.Code, w.Body.String())
+		}
+		testutil.LoginToken(t, h, "ali2", "ResetPass1")
+		w = testutil.DoJSON(t, h, http.MethodPost, "/api/v1/auth/login", map[string]string{
+			"username": "ali", "password": "ManagerPass1",
+		}, "")
+		if w.Code == http.StatusOK {
+			t.Fatal("old username should not login")
+		}
+	})
+
+	t.Run("password_only", func(t *testing.T) {
+		mgrID, _ := testutil.SeedManager(t, h, adminToken, "bob", "bob", 10)
+		w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mgrID, 10), map[string]any{
+			"password": "OnlyPass1",
+		}, adminToken)
+		if w.Code != http.StatusOK {
+			t.Fatalf("patch: %d %s", w.Code, w.Body.String())
+		}
+		testutil.LoginToken(t, h, "bob", "OnlyPass1")
+	})
+
+	t.Run("username_unchanged_same_id", func(t *testing.T) {
+		mgrID, _ := testutil.SeedManager(t, h, adminToken, "carol", "carol", 10)
+		w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mgrID, 10), map[string]any{
+			"username": "carol",
+		}, adminToken)
+		if w.Code != http.StatusOK {
+			t.Fatalf("patch same username: %d %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("username_duplicate", func(t *testing.T) {
+		_, _ = testutil.SeedManager(t, h, adminToken, "taken", "taken", 10)
+		mgrID, _ := testutil.SeedManager(t, h, adminToken, "other", "other", 10)
+		w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mgrID, 10), map[string]any{
+			"username": "taken",
+		}, adminToken)
+		if w.Code != http.StatusConflict {
+			t.Fatalf("expected 409: %d %s", w.Code, w.Body.String())
+		}
+		var body struct {
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
+		}
+		testutil.DecodeJSON(t, w, &body)
+		if body.Error.Code != "USERNAME_IN_USE" {
+			t.Fatalf("code: %s", body.Error.Code)
+		}
+	})
+
+	t.Run("username_case_insensitive_duplicate", func(t *testing.T) {
+		_, _ = testutil.SeedManager(t, h, adminToken, "CaseUser", "caseuser", 10)
+		mgrID, _ := testutil.SeedManager(t, h, adminToken, "caseother", "caseother", 10)
+		w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mgrID, 10), map[string]any{
+			"username": "caseuser",
+		}, adminToken)
+		if w.Code != http.StatusConflict {
+			t.Fatalf("expected 409: %d %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("username_empty", func(t *testing.T) {
+		mgrID, _ := testutil.SeedManager(t, h, adminToken, "empty", "empty", 10)
+		w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mgrID, 10), map[string]any{
+			"username": "   ",
+		}, adminToken)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400: %d %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("forbidden_for_manager", func(t *testing.T) {
+		mgrID, mgrToken := testutil.SeedManager(t, h, adminToken, "guard", "guard", 10)
+		w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mgrID, 10), map[string]any{
+			"password": "HackPass1",
+		}, mgrToken)
+		if w.Code != http.StatusForbidden && w.Code != http.StatusUnauthorized {
+			t.Fatalf("manager patch: %d %s", w.Code, w.Body.String())
+		}
+	})
+}
+
 func TestPOST_me_password(t *testing.T) {
 	application, _, _ := testutil.NewTestApp(t)
 	h := server.New(application)

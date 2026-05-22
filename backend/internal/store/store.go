@@ -221,10 +221,13 @@ func (s *Store) CreateManager(ctx context.Context, m *Manager) error {
 	return nil
 }
 
-func (s *Store) UpdateManager(ctx context.Context, id int64, displayName *string, quota *int, isActive *bool, passwordHash *string) error {
+func (s *Store) UpdateManager(ctx context.Context, id int64, username, displayName *string, quota *int, isActive *bool, passwordHash *string) error {
 	m, err := s.FindManagerByID(ctx, id)
 	if err != nil {
 		return err
+	}
+	if username != nil {
+		m.Username = *username
 	}
 	if displayName != nil {
 		m.DisplayName = *displayName
@@ -243,8 +246,8 @@ func (s *Store) UpdateManager(ctx context.Context, id int64, displayName *string
 		active = 1
 	}
 	_, err = s.db.ExecContext(ctx,
-		`UPDATE managers SET display_name=?, quota=?, is_active=?, password_hash=?, updated_at=datetime('now') WHERE id=?`,
-		m.DisplayName, m.Quota, active, m.PasswordHash, id)
+		`UPDATE managers SET username=?, display_name=?, quota=?, is_active=?, password_hash=?, updated_at=datetime('now') WHERE id=?`,
+		m.Username, m.DisplayName, m.Quota, active, m.PasswordHash, id)
 	return err
 }
 

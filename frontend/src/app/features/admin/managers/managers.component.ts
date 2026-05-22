@@ -31,6 +31,7 @@ import { AdminService } from '../../../core/services/vpn-user.service';
         <thead>
           <tr>
             <th>نام</th>
+            <th>نام کاربری</th>
             <th>slug</th>
             <th>سقف</th>
             <th>مصرف</th>
@@ -42,6 +43,13 @@ import { AdminService } from '../../../core/services/vpn-user.service';
           @for (m of items(); track m.id) {
             <tr [class.inactive]="!m.is_active">
               <td>{{ m.display_name }}</td>
+              <td>
+                @if (editId() === m.id) {
+                  <input dir="ltr" [(ngModel)]="editUsername" [name]="'u' + m.id" required />
+                } @else {
+                  <span dir="ltr">{{ m.username }}</span>
+                }
+              </td>
               <td dir="ltr">{{ m.slug }}</td>
               <td>
                 @if (editId() === m.id) {
@@ -61,8 +69,19 @@ import { AdminService } from '../../../core/services/vpn-user.service';
                   {{ m.is_active ? 'بله' : 'خیر' }}
                 }
               </td>
-              <td>
+              <td class="actions">
                 @if (editId() === m.id) {
+                  <label class="pw-field">
+                    رمز جدید
+                    <input
+                      type="password"
+                      dir="ltr"
+                      [(ngModel)]="editPassword"
+                      [name]="'p' + m.id"
+                      placeholder="خالی = بدون تغییر"
+                      autocomplete="new-password"
+                    />
+                  </label>
                   <button type="button" class="link" (click)="saveEdit(m)">ذخیره</button>
                   <button type="button" class="link" (click)="editId.set(null)">انصراف</button>
                 } @else {
@@ -95,6 +114,18 @@ import { AdminService } from '../../../core/services/vpn-user.service';
       width: auto;
       margin: 0;
     }
+    .actions {
+      min-width: 12rem;
+    }
+    .pw-field {
+      display: block;
+      margin: 0 0 0.35rem;
+      font-size: 0.8rem;
+    }
+    .pw-field input {
+      width: 100%;
+      margin-top: 0.2rem;
+    }
   `,
 })
 export class ManagersComponent implements OnInit {
@@ -103,6 +134,8 @@ export class ManagersComponent implements OnInit {
   readonly items = signal<ManagerRow[]>([]);
   readonly error = signal('');
   readonly editId = signal<number | null>(null);
+  editUsername = '';
+  editPassword = '';
   editQuota = 10;
   editActive = true;
 
@@ -137,12 +170,28 @@ export class ManagersComponent implements OnInit {
 
   startEdit(m: ManagerRow): void {
     this.editId.set(m.id);
+    this.editUsername = m.username;
+    this.editPassword = '';
     this.editQuota = m.quota;
     this.editActive = m.is_active;
   }
 
   saveEdit(m: ManagerRow): void {
-    this.admin.patchManager(m.id, { quota: this.editQuota, is_active: this.editActive }).pipe(
+    const body: {
+      username: string;
+      quota: number;
+      is_active: boolean;
+      password?: string;
+    } = {
+      username: this.editUsername.trim(),
+      quota: this.editQuota,
+      is_active: this.editActive,
+    };
+    const pw = this.editPassword.trim();
+    if (pw) {
+      body.password = pw;
+    }
+    this.admin.patchManager(m.id, body).pipe(
       catchError((e) => {
         this.error.set(ApiClient.mapError(e));
         return of(null);

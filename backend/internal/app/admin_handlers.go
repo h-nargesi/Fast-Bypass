@@ -127,6 +127,7 @@ func (a *App) HandleAdminGetVPNUser(w http.ResponseWriter, r *http.Request) {
 }
 
 type patchManagerReq struct {
+	Username    *string `json:"username"`
 	DisplayName *string `json:"display_name"`
 	Quota       *int    `json:"quota"`
 	IsActive    *bool   `json:"is_active"`
@@ -141,6 +142,24 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	var username *string
+	if req.Username != nil {
+		u := strings.TrimSpace(*req.Username)
+		if u == "" {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "نام کاربری نامعتبر است")
+			return
+		}
+		existing, err := a.Store.FindManagerByUsername(ctx, u)
+		if err == nil && existing.ID != id {
+			httpx.WriteError(w, http.StatusConflict, "USERNAME_IN_USE", "نام کاربری تکراری است")
+			return
+		}
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+			return
+		}
+		username = &u
+	}
 	if req.Quota != nil {
 		used, err := a.managerUsedQuota(ctx, id)
 		if err != nil {
@@ -157,7 +176,7 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 		h, _ := password.Hash(*req.Password)
 		hash = &h
 	}
-	if err := a.Store.UpdateManager(ctx, id, req.DisplayName, req.Quota, req.IsActive, hash); err != nil {
+	if err := a.Store.UpdateManager(ctx, id, username, req.DisplayName, req.Quota, req.IsActive, hash); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "مدیر یافت نشد")
 			return
