@@ -4,12 +4,24 @@
 
 | پارامتر | env |
 |---------|-----|
+| حالت | `MIKROTIK_API` — `api-ssl` (پیش‌فرض) یا `api` |
 | Host | `MIKROTIK_HOST` |
-| Port | `MIKROTIK_PORT` (8729 برای api-ssl) |
+| Port | `MIKROTIK_PORT` — پیش‌فرض 8729 برای api-ssl، 8728 برای api |
 | User / Pass | `MIKROTIK_USERNAME`, `MIKROTIK_PASSWORD` |
-| TLS | api-ssl؛ در dev `MIKROTIK_TLS_INSECURE=true` |
+| TLS | فقط در `api-ssl`؛ در dev `MIKROTIK_TLS_INSECURE=true` |
 
-**کتابخانه پیشنهادی Go:** `github.com/go-routeros/routeros` یا کلاینت REST جدید RouterOS v7 در صورت فعال بودن `www-ssl` — ترجیح با **binary API روی 8729** برای سازگاری User Manager.
+**`api-ssl`:** `DialTLS` روی پورت 8729 — production و VM با اسنپ‌شات `clean-test-state`.
+
+**`api`:** API دودویی بدون TLS روی پورت 8728 — وقتی `/ip service` فقط `api` فعال است یا handshake روی 8729 خطا می‌دهد:
+
+```env
+MIKROTIK_API=api
+MIKROTIK_PORT=8728
+```
+
+اگر `MIKROTIK_API` خالی باشد و فقط `MIKROTIK_PORT=8728` ست شده باشد، پنل خودکار حالت `api` را انتخاب می‌کند.
+
+**کتابخانه Go:** `github.com/go-routeros/routeros` — binary API برای User Manager.
 
 اتصال **یک pool** در سرور؛ هر درخواست HTTP یک یا چند دستور sequential. Timeout: `MIKROTIK_TIMEOUT`.
 

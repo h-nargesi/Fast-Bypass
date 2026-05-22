@@ -216,10 +216,11 @@ cp .env.example .env
 | متغیر | مقدار (VM Mikrotik-Base) |
 |--------|---------------------------|
 | `MIKROTIK_HOST` | `192.168.56.11` |
-| `MIKROTIK_PORT` | `8729` |
+| `MIKROTIK_API` | `api-ssl` (یا `api` + پورت `8728` اگر TLS شکست می‌خورد) |
+| `MIKROTIK_PORT` | `8729` (api-ssl) / `8728` (api) |
 | `MIKROTIK_USERNAME` | `admin` |
 | `MIKROTIK_PASSWORD` | `admin` |
-| `MIKROTIK_TLS_INSECURE` | `true` |
+| `MIKROTIK_TLS_INSECURE` | `true` (فقط api-ssl) |
 
 پس از پیاده‌سازی backend/frontend، همان [اجرای سریع](../README.md#اجرای-سریع-پس-از-پیاده‌سازی) در README.
 
@@ -233,7 +234,7 @@ cp .env.example .env
 |------|--------|
 | Winbox روتر را نمی‌بیند | کابل مجازی؛ فایروال میزبان |
 | پنل `MIKROTIK_UNAVAILABLE` | IP/pورت؛ `api-ssl` فعال؛ ping از میزبان |
-| TLS خطا | `MIKROTIK_TLS_INSECURE=true` در dev |
+| TLS خطا | `MIKROTIK_TLS_INSECURE=true` در dev؛ یا `MIKROTIK_API=api` و `MIKROTIK_PORT=8728` |
 | User Manager خالی | پکیج user-manager نصب؛ نسخه ≥ 7.21 |
 
 ## تست خودکار با VM (VirtualBox)

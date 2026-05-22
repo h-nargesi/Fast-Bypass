@@ -44,7 +44,7 @@ func main() {
 	}
 
 	go func() {
-		log.Info("listening", "addr", cfg.HTTPAddr, "mikrotik_fake", cfg.MikrotikFake)
+		log.Info("listening", "addr", cfg.HTTPAddr, "mikrotik_fake", cfg.MikrotikFake, "mikrotik_api", cfg.MikrotikAPI, "mikrotik_host", cfg.MikrotikHost, "mikrotik_port", cfg.MikrotikPort)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("server", "err", err)
 			os.Exit(1)

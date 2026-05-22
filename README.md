@@ -8,7 +8,7 @@
 |------|--------|
 | RouterOS | 7.21+ |
 | پکیج | `user-manager` فعال |
-| API | `api-ssl` (پورت پیش‌فرض 8729) |
+| API | `MIKROTIK_API=api-ssl` (8729) یا `api` (8728) |
 | زمان | همه سرویس‌ها `Asia/Tehran` |
 | پروفایل پیش‌فرض | `profile-open-2M-30d` (در روتر از قبل تعریف شده باشد) |
 

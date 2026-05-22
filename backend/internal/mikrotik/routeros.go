@@ -14,25 +14,26 @@ import (
 	"github.com/go-routeros/routeros/v3/proto"
 )
 
-// RouterOS talks to User Manager over RouterOS api-ssl (port 8729).
+// RouterOS talks to User Manager over RouterOS API (api on 8728 or api-ssl on 8729).
 type RouterOS struct {
 	mu      sync.Mutex
 	addr    string
 	user    string
 	pass    string
+	useTLS  bool
 	tls     *tls.Config
 	timeout time.Duration
 	cli     *routeros.Client
 }
 
-func NewRouterOS(addr, user, pass string, tlsCfg *tls.Config, timeout time.Duration) *RouterOS {
+func NewRouterOS(addr, user, pass string, useTLS bool, tlsCfg *tls.Config, timeout time.Duration) *RouterOS {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
-	if tlsCfg == nil {
+	if useTLS && tlsCfg == nil {
 		tlsCfg = &tls.Config{}
 	}
-	return &RouterOS{addr: addr, user: user, pass: pass, tls: tlsCfg, timeout: timeout}
+	return &RouterOS{addr: addr, user: user, pass: pass, useTLS: useTLS, tls: tlsCfg, timeout: timeout}
 }
 
 func (r *RouterOS) InvalidateCache() {}
@@ -150,7 +151,15 @@ func (r *RouterOS) run(sentences ...string) (*routeros.Reply, error) {
 	defer cancel()
 
 	if r.cli == nil {
-		cli, err := routeros.DialTLSContext(ctx, r.addr, r.user, r.pass, r.tls)
+		var (
+			cli *routeros.Client
+			err error
+		)
+		if r.useTLS {
+			cli, err = routeros.DialTLSContext(ctx, r.addr, r.user, r.pass, r.tls)
+		} else {
+			cli, err = routeros.DialContext(ctx, r.addr, r.user, r.pass)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
 		}
@@ -211,6 +220,7 @@ func isConnErr(err error) bool {
 	}
 	s := err.Error()
 	return strings.Contains(s, "connection") ||
+		strings.Contains(s, "handshake") ||
 		strings.Contains(s, "EOF") ||
 		strings.Contains(s, "reset") ||
 		strings.Contains(s, "timeout") ||

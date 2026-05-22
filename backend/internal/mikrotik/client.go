@@ -13,6 +13,9 @@ func NewFromConfig(cfg config.Config) (Client, error) {
 		return NewFake(), nil
 	}
 	addr := fmt.Sprintf("%s:%d", cfg.MikrotikHost, cfg.MikrotikPort)
-	tlsCfg := &tls.Config{InsecureSkipVerify: cfg.MikrotikTLSInsec} //nolint:gosec
-	return NewRouterOS(addr, cfg.MikrotikUser, cfg.MikrotikPass, tlsCfg, cfg.MikrotikTimeout), nil
+	var tlsCfg *tls.Config
+	if cfg.MikrotikUseTLS {
+		tlsCfg = &tls.Config{InsecureSkipVerify: cfg.MikrotikTLSInsec} //nolint:gosec
+	}
+	return NewRouterOS(addr, cfg.MikrotikUser, cfg.MikrotikPass, cfg.MikrotikUseTLS, tlsCfg, cfg.MikrotikTimeout), nil
 }

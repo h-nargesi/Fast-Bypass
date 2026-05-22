@@ -21,6 +21,9 @@ type Config struct {
 	MikrotikPort     int
 	MikrotikUser     string
 	MikrotikPass     string
+	// MikrotikAPI: "api-ssl" (TLS, port 8729) or "api" (plain, port 8728).
+	MikrotikAPI      string
+	MikrotikUseTLS   bool
 	MikrotikTLSInsec bool
 	MikrotikTimeout  time.Duration
 
@@ -45,6 +48,7 @@ type Config struct {
 
 func Load() Config {
 	godotenvLoad()
+	api, useTLS, defaultPort := mikrotikAPIFromEnv()
 	return Config{
 		HTTPAddr:    env("HTTP_ADDR", ":8080"),
 		CORSOrigins: strings.Split(env("CORS_ORIGINS", "http://localhost:4200"), ","),
@@ -54,9 +58,11 @@ func Load() Config {
 		MikrotikCacheTTL: envDuration("MIKROTIK_CACHE_TTL", 30*time.Second),
 		MikrotikFake:     envBool("MIKROTIK_FAKE", true),
 		MikrotikHost:     env("MIKROTIK_HOST", "192.168.56.11"),
-		MikrotikPort:     envInt("MIKROTIK_PORT", 8729),
 		MikrotikUser:     env("MIKROTIK_USERNAME", "admin"),
 		MikrotikPass:     env("MIKROTIK_PASSWORD", ""),
+		MikrotikAPI:      api,
+		MikrotikUseTLS:   useTLS,
+		MikrotikPort:     envInt("MIKROTIK_PORT", defaultPort),
 		MikrotikTLSInsec: envBool("MIKROTIK_TLS_INSECURE", false),
 		MikrotikTimeout:  envDuration("MIKROTIK_TIMEOUT", 10*time.Second),
 
@@ -119,4 +125,28 @@ func envDuration(k string, def time.Duration) time.Duration {
 		}
 	}
 	return def
+}
+
+// mikrotikAPIFromEnv resolves MIKROTIK_API (api | api-ssl) and default port when MIKROTIK_PORT is unset.
+func mikrotikAPIFromEnv() (api string, useTLS bool, defaultPort int) {
+	raw := strings.ToLower(strings.TrimSpace(env("MIKROTIK_API", "")))
+	portSet := os.Getenv("MIKROTIK_PORT") != ""
+
+	switch raw {
+	case "api", "plain":
+		return "api", false, 8728
+	case "api-ssl", "ssl", "tls":
+		return "api-ssl", true, 8729
+	case "":
+		if portSet {
+			p := envInt("MIKROTIK_PORT", 8729)
+			if p == 8728 {
+				return "api", false, 8728
+			}
+			return "api-ssl", true, 8729
+		}
+		return "api-ssl", true, 8729
+	default:
+		return "api-ssl", true, 8729
+	}
 }
