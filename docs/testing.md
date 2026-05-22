@@ -53,9 +53,45 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | refresh JWT | ✓ auth | ✓ acceptance |
 | تغییر رمز `/me/password` | ✓ password | ✓ acceptance |
 
-**خارج پوشش تست backend (فاز ۱):**
+**خارج پوشش تست backend (فاز ۱)** — در [تست frontend](#تست-خودکار-frontend-angular) پوشش داده می‌شود:
 
-- UI فارسی، RTL، تاریخ شمسی، modal تأیید — **frontend**
+- UI فارسی، RTL، تاریخ شمسی، modal تأیید
+
+---
+
+## تست خودکار frontend (Angular)
+
+```bash
+cd frontend
+npm install
+npm test          # Vitest — حالت watch
+npm run test:ci   # یک‌بار، برای CI
+```
+
+| مسیر تست | موضوع |
+|----------|--------|
+| `src/index-locale.spec.ts` | `index.html`: `lang=fa`, `dir=rtl` |
+| `src/app/core/i18n/messages.spec.ts` | پیام‌های فارسی UI و نگاشت خطای API |
+| `src/app/core/date/jalali.spec.ts` | تاریخ شمسی با `Asia/Tehran` |
+| `src/app/core/format/currency.spec.ts` | مبلغ با جداکننده هزارگان + «ریال» |
+| `src/app/shared/pipes/jalali-date.pipe.spec.ts` | pipe نمایش تاریخ |
+| `src/app/shared/components/confirm-dialog/*.spec.ts` | modal تأیید (نقش `alertdialog`، دکمه تأیید/انصراف) |
+| `src/app/app.spec.ts` | عنوان فارسی پوستهٔ اصلی |
+
+### پوشش چک‌لیست فاز ۱ (frontend)
+
+| مورد | unit |
+|------|:----:|
+| UI فارسی (پیام‌ها، عنوان) | ✓ |
+| RTL (`dir=rtl`, `lang=fa`) | ✓ |
+| تاریخ شمسی | ✓ |
+| modal تأیید حذف | ✓ |
+| فرمت مبلغ ریال | ✓ |
+
+**خارج پوشش تست frontend (فاز ۱):**
+
+- E2E با backend/روتر واقعی
+- تمام صفحات و جریان‌های [user-flows.md](user-flows.md) (پس از پیاده‌سازی کامل UI)
 - ویرایش `PATCH /admin/vpn-users/:id` — **هنوز پیاده نشده**
 - لاگ نکردن password — بازبینی دستی / lint
 - timezone `Asia/Tehran` در assert — سرور تست `TZ=UTC`؛ رفتار parse در production با env

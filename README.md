@@ -49,8 +49,9 @@ go mod tidy
 go run ./cmd/server
 # API: http://localhost:8080/api/v1 — health: http://localhost:8080/health
 
-# frontend (فاز بعدی)
-# cd frontend && npm install && npm start
+# frontend
+cd frontend && npm install && npm start
+# تست واحد: npm run test:ci — جزئیات docs/testing.md
 ```
 
 ساختار backend: `backend/cmd/server`، ماژول‌ها در `backend/internal/` (auth، store، mikrotik، app).
