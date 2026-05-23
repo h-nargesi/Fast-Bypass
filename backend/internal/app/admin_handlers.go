@@ -172,9 +172,20 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	var hash *string
-	if req.Password != nil && password.ValidPanel(*req.Password) {
-		h, _ := password.Hash(*req.Password)
-		hash = &h
+	if req.Password != nil {
+		pw := strings.TrimSpace(*req.Password)
+		if pw != "" {
+			if !password.ValidPanel(pw) {
+				httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "رمز نامعتبر است (حداقل ۸ کاراکتر، حروف و عدد)")
+				return
+			}
+			h, err := password.Hash(pw)
+			if err != nil {
+				httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+				return
+			}
+			hash = &h
+		}
 	}
 	if err := a.Store.UpdateManager(ctx, id, username, req.DisplayName, req.Quota, req.IsActive, hash); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

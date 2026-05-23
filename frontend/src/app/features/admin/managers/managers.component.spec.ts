@@ -55,6 +55,20 @@ describe('ManagersComponent', () => {
     expect(fixture.componentInstance.editId()).toBeNull();
   });
 
+  it('shows error when patch rejects invalid password', () => {
+    fixture.componentInstance.startEdit(managerRow);
+    fixture.componentInstance.editPassword = 'short';
+    fixture.componentInstance.saveEdit(managerRow);
+
+    const req = http.expectOne('/api/v1/admin/managers/2');
+    req.flush(
+      { error: { code: 'VALIDATION', message: 'رمز نامعتبر است (حداقل ۸ کاراکتر، حروف و عدد)' } },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    expect(fixture.componentInstance.error()).toContain('رمز نامعتبر');
+    expect(fixture.componentInstance.editId()).toBe(2);
+  });
+
   it('omits password from patch body when edit password is empty', () => {
     fixture.componentInstance.startEdit(managerRow);
     fixture.componentInstance.editUsername = 'ali';

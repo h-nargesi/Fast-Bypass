@@ -647,6 +647,17 @@ func TestAdmin_patchManager(t *testing.T) {
 		}
 	})
 
+	t.Run("password_invalid", func(t *testing.T) {
+		mgrID, _ := testutil.SeedManager(t, h, adminToken, "weak", "weak", 10)
+		w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mgrID, 10), map[string]any{
+			"password": "short",
+		}, adminToken)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400: %d %s", w.Code, w.Body.String())
+		}
+		testutil.LoginToken(t, h, "weak", "ManagerPass1")
+	})
+
 	t.Run("forbidden_for_manager", func(t *testing.T) {
 		mgrID, mgrToken := testutil.SeedManager(t, h, adminToken, "guard", "guard", 10)
 		w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mgrID, 10), map[string]any{
