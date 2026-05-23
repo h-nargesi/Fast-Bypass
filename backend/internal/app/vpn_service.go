@@ -90,7 +90,7 @@ func (a *App) buildVPNDetail(ctx context.Context, reg owner.Registry, meta *stor
 		"disabled": u.Disabled,
 		"contact_info": nullStrVal(meta.ContactInfo),
 		"notes": nullStrVal(meta.Notes),
-		"profiles": profileDTOs(profs), "activations": activationDTOs(acts),
+		"profiles": profileDTOs(profs), "activations": a.activationDTOsWithLiveShared(ctx, acts, u.Name),
 		"connection_bundle": a.connectionBundle(u),
 		"manager_id": mid, "manager_display_name": dn, "manager_username": un, "manager_slug": sl,
 		"owner_mismatch": mismatch,
@@ -360,6 +360,9 @@ func (a *App) patchVPNUser(ctx context.Context, reg owner.Registry, meta *store.
 	}
 	if err := a.MT.SetUser(u.Name, passPtr, req.SharedUsers, comment, req.Disabled); err != nil {
 		return nil, err
+	}
+	if req.SharedUsers != nil {
+		a.syncSharedUsersToUnsettledActivation(ctx, meta.ID, *req.SharedUsers)
 	}
 	if err := a.Store.UpdateVPNMeta(ctx, meta.ID, req.ContactInfo, req.Notes, mid); err != nil {
 		return nil, err

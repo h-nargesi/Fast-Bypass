@@ -42,7 +42,7 @@ Errors: `{ "error": { "code": "QUOTA_EXCEEDED", "message": "..." } }`
 | Method | Path                                    | توضیح                                            |
 | ------ | --------------------------------------- | ------------------------------------------------ |
 | GET    | `/vpn-users`                            | لیست کاربران خود (کش MikroTik + enrich DB؛ `?refresh=true` اجبار fetch) |
-| GET    | `/vpn-users/:id`                        | جزئیات + user-profiles + activations + `connection_bundle` |
+| GET    | `/vpn-users/:id`                        | جزئیات + user-profiles + `activations` (شامل `shared_users`) + `connection_bundle` |
 | GET    | `/vpn-users/:id/connection`             | همان `connection_bundle` (اختیاری — برای lazy-load کارت اتصال) |
 | GET    | `/vpn-users/:id/ovpn`                   | دانلود فایل پیکربندی OpenVPN (`application/x-openvpn-profile`) |
 | POST   | `/vpn-users`                            | ایجاد — body زیر                                 |
@@ -90,6 +90,20 @@ Errors: `{ "error": { "code": "QUOTA_EXCEEDED", "message": "..." } }`
 ### PATCH `/vpn-users/:id`
 
 فیلدهای اختیاری: `password`, `shared_users`, `disabled`, `contact_info`, `notes`.
+
+پس از `PATCH` با `shared_users`، آخرین activation تسویه‌نشده همان کاربر در DB به‌روز می‌شود (همان قانون هم‌خوانی `shared_users` در [business-rules.md](business-rules.md#هم‌خوانی-shared_users-روتر--دفتر-تمدید)).
+
+### `activations` در `GET /vpn-users/:id`
+
+آرایهٔ تاریخچه تمدید/assign. هر عنصر حداقل:
+
+| فیلد | UI (جدول تاریخچه در `/users/:id`) |
+|------|-----------------------------------|
+| `created_at` | تاریخ |
+| `profile_name` | پروفایل |
+| `shared_users` | اتصال — برای آخرین ردیف تسویه‌نشده از MikroTik overlay |
+| `amount_paid` | مبلغ (اختیاری) |
+| `is_settled` | تسویه ✓/✗ |
 
 ### POST `/vpn-users/:id/assign-profile`
 
@@ -382,14 +396,16 @@ Query:
 | 1 | `renewed_at` | `profile_activations.created_at` | تاریخ تمدید |
 | 2 | `mikrotik_name` | `vpn_user_meta` | نام کاربر |
 | — | `manager_*` | JOIN `managers` | (فقط در scope/header ادمین، نه ستون جدول) |
-| 3 | `shared_users` | snapshot در DB (زمان assign) | تعداد اتصالات همزمان |
+| 3 | `shared_users` | MikroTik برای `is_settled=0`؛ DB ثابت برای تسویه‌شده | تعداد اتصالات همزمان |
 | 4 | `profile_name` | DB | نام پروفایل |
 | 5 | `profile_state` | MikroTik `user-profile` | وضعیت پروفایل |
 | 6 | `mikrotik_end_time` | DB | تاریخ اعتبار |
 | 7 | `is_settled` | DB | تسویه شده |
 
-`summary.unsettled_shared_users_sum`: جمع `shared_users` ردیف‌های `is_settled=0` در **همان scope** (بدون توجه به `page`).  
-`summary.all_shared_users_sum`: جمع همه ردیف‌های همان scope.
+`summary.unsettled_shared_users_sum`: جمع `shared-users` زنده از MikroTik برای ردیف‌های `is_settled=0` در **همان scope** (بدون توجه به `page`).  
+`summary.all_shared_users_sum`: unsettled از روتر + settled از DB، در همان scope.
+
+**هم‌خوانی `shared_users`:** `PATCH /vpn-users/:id` با `shared_users` پس از `SetUser` روی روتر، ستون `shared_users` **آخرین** `profile_activations` با `is_settled=0` همان کاربر را به‌روز می‌کند. در `GET /renewals` و `activations` جزئیات کاربر، فقط **آخرین** ردیف تسویه‌نشده هر کاربر از MikroTik overlay می‌شود (heal در DB در صورت اختلاف). ردیف‌های تسویه‌شده و unsettledهای قدیمی‌تر ثابت می‌مانند.
 
 مرتب‌سازی پیش‌فرض: `renewed_at` نزولی (جدیدترین بالا).
 
@@ -428,7 +444,7 @@ Query:
 
 خطا: `404` اگر id وجود نداشته باشد؛ `403` برای manager یا activation خارج از scope.
 
-**ثبت `shared_users` در assign:** در `POST /vpn-users` (با assign) و `POST /vpn-users/:id/assign-profile` پس از موفقیت روتر، مقدار فعلی `shared-users` کاربر در ستون `profile_activations.shared_users` ذخیره شود.
+**ثبت `shared_users` در assign:** در `POST /vpn-users` (با assign) و `POST /vpn-users/:id/assign-profile` پس از موفقیت روتر، مقدار فعلی `shared-users` کاربر در ستون `profile_activations.shared_users` ذخیره شود (شروع دورهٔ جاری).
 
 ## Health
 

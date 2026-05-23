@@ -39,9 +39,14 @@ func (a *App) HandleAdminRenewals(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) writeRenewals(w http.ResponseWriter, r *http.Request, filter store.RenewalFilter, canSettle bool) {
-	items, total, summary, err := a.Store.ListRenewals(r.Context(), filter)
+	items, total, _, err := a.Store.ListRenewals(r.Context(), filter)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
+	summary, err := a.applyRenewalsLiveSharedUsers(r.Context(), filter, items)
+	if err != nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
 	scope := map[string]any{"orphan": filter.OrphanOnly}

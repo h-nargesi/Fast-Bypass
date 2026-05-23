@@ -132,13 +132,14 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
         <h3>تاریخچه تمدید</h3>
         <table>
           <thead>
-            <tr><th>تاریخ</th><th>پروفایل</th><th>مبلغ</th><th>تسویه</th></tr>
+            <tr><th>تاریخ</th><th>پروفایل</th><th>اتصال</th><th>مبلغ</th><th>تسویه</th></tr>
           </thead>
           <tbody>
             @for (a of u.activations; track a.id) {
               <tr>
                 <td>{{ a.created_at | jalaliDate }}</td>
                 <td>{{ a.profile_name }}</td>
+                <td>{{ a.shared_users }}</td>
                 <td>{{ formatAmount(a.amount_paid) }}</td>
                 <td>{{ a.is_settled ? '✓' : '✗' }}</td>
               </tr>

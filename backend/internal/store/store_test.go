@@ -122,6 +122,31 @@ func TestVPNMeta_andActivations(t *testing.T) {
 	}
 }
 
+func TestUpdateLatestUnsettledActivationSharedUsers(t *testing.T) {
+	st, cleanup := openTestStore(t)
+	defer cleanup()
+	ctx := context.Background()
+	hash, _ := password.Hash("Manager1")
+	m := &Manager{Username: "ali", PasswordHash: hash, Slug: "ali", Quota: 10, IsActive: true}
+	_ = st.CreateManager(ctx, m)
+	meta := &VPNUserMeta{
+		MikrotikName: "ali-u1",
+		ManagerID:    sql.NullInt64{Int64: m.ID, Valid: true},
+	}
+	_ = st.CreateVPNMeta(ctx, meta)
+	act := &ProfileActivation{
+		VPNUserMetaID: meta.ID, ProfileName: "p1", SharedUsers: 2, Currency: "IRR",
+	}
+	_ = st.CreateActivation(ctx, act)
+	if err := st.UpdateLatestUnsettledActivationSharedUsers(ctx, meta.ID, 5); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := st.FindActivationByID(ctx, act.ID)
+	if got.SharedUsers != 5 {
+		t.Fatalf("shared_users = %d", got.SharedUsers)
+	}
+}
+
 func TestSettleThrough_rejectsWrongScope(t *testing.T) {
 	st, cleanup := openTestStore(t)
 	defer cleanup()

@@ -88,3 +88,11 @@ type RenewalThrough struct {
 	ManagerID    *int64
 	OrphanOnly   bool
 }
+
+// RenewalSharedUsersRow is a lightweight row for live shared_users overlay in renewals.
+type RenewalSharedUsersRow struct {
+	ID           int64
+	MikrotikName string
+	SharedUsers  int
+	IsSettled    bool
+}

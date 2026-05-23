@@ -54,6 +54,7 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | `PATCH /me` محدود | — | ✓ acceptance |
 | دفتر تمدید / settle / ممنوعیت مدیر | — | ✓ api + acceptance |
 | snapshot `shared_users` در activation | ✓ store | ✓ acceptance |
+| هم‌خوانی `shared_users` (پچ + live renewals) | ✓ store | ✓ acceptance |
 | کش + `?refresh=true` | ✓ mikrotik | ✓ acceptance |
 | حذف کاربر / حذف رزرو | ✓ fake | ✓ acceptance |
 | ادمین: ایجاد / PATCH / DELETE VPN | ✓ fake | ✓ acceptance |
@@ -97,6 +98,7 @@ npm run test:ci   # یک‌بار، برای CI
 | `src/app/shared/components/connection-bundle/*.spec.ts` | کارت اتصال مشتری (تب‌ها، پیش‌نمایش) |
 | `src/app/features/auth/login/*.spec.ts` | فرم ورود و POST `/auth/login` |
 | `src/app/features/manager/dashboard/*.spec.ts` | داشبورد مدیر + API |
+| `src/app/features/manager/users/user-detail.component.spec.ts` | جزئیات کاربر — ستون اتصال در تاریخچه تمدید |
 | `src/app/app.spec.ts` | پوسته، nav مدیر/ادمین، مخفی در login |
 | `src/app/core/layout/document-locale.spec.ts` | قرارداد `lang`/`dir` سند |
 
@@ -113,6 +115,7 @@ npm run test:ci   # یک‌بار، برای CI
 | داشبورد مدیر (quota + لیست) | ✓ |
 | کارت اتصال مشتری | ✓ |
 | سرویس‌های API (VPN، renewals، managers) | ✓ |
+| تاریخچه تمدید در `/users/:id` — ستون `shared_users` | ✓ |
 
 **خارج پوشش تست frontend (فاز ۱):**
 

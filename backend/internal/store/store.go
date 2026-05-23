@@ -373,6 +373,47 @@ func (s *Store) ListActivationsByMetaID(ctx context.Context, metaID int64) ([]Pr
 	return scanActivations(rows)
 }
 
+func (s *Store) UpdateLatestUnsettledActivationSharedUsers(ctx context.Context, metaID int64, sharedUsers int) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE profile_activations SET shared_users = ?
+		 WHERE id = (
+		   SELECT id FROM profile_activations
+		   WHERE vpn_user_meta_id = ? AND is_settled = 0
+		   ORDER BY created_at DESC, id DESC LIMIT 1
+		 )`, sharedUsers, metaID)
+	return err
+}
+
+func (s *Store) UpdateActivationSharedUsers(ctx context.Context, activationID int64, sharedUsers int) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE profile_activations SET shared_users = ? WHERE id = ?`, sharedUsers, activationID)
+	return err
+}
+
+func (s *Store) ListRenewalSharedUsersInScope(ctx context.Context, filter RenewalFilter) ([]RenewalSharedUsersRow, error) {
+	where, args := renewalWhere(filter)
+	q := `SELECT pa.id, v.mikrotik_name, pa.shared_users, pa.is_settled
+		FROM profile_activations pa
+		JOIN vpn_user_meta v ON v.id = pa.vpn_user_meta_id ` + where +
+		` ORDER BY pa.created_at DESC`
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []RenewalSharedUsersRow
+	for rows.Next() {
+		var r RenewalSharedUsersRow
+		var settled int
+		if err := rows.Scan(&r.ID, &r.MikrotikName, &r.SharedUsers, &settled); err != nil {
+			return nil, err
+		}
+		r.IsSettled = settled == 1
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) FindActivationByID(ctx context.Context, id int64) (*ProfileActivation, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, vpn_user_meta_id, profile_name, shared_users, amount_paid, currency, paid_at, note,

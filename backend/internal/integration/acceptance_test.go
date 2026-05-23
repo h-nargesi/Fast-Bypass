@@ -426,6 +426,64 @@ func TestAssign_storesSharedUsersSnapshot(t *testing.T) {
 	}
 }
 
+func TestSharedUsers_syncPatchAndRenewalsLive(t *testing.T) {
+	application, _, fake := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	_, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+
+	w := testutil.DoJSON(t, h, http.MethodPost, "/api/v1/vpn-users", map[string]any{
+		"local_name": "sync1", "password": "Secret123", "shared_users": 2, "assign_profile": true,
+	}, mgrToken)
+	var created map[string]any
+	testutil.DecodeJSON(t, w, &created)
+	id := int(created["id"].(float64))
+	name := created["mikrotik_name"].(string)
+
+	w = testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/vpn-users/"+strconv.Itoa(id), map[string]any{
+		"shared_users": 4,
+	}, mgrToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("patch: %d %s", w.Code, w.Body.String())
+	}
+	var detail map[string]any
+	testutil.DecodeJSON(t, w, &detail)
+	acts := detail["activations"].([]any)
+	if int(acts[0].(map[string]any)["shared_users"].(float64)) != 4 {
+		t.Fatalf("activation after patch: %+v", acts[0])
+	}
+
+	su := 5
+	if err := fake.SetUser(name, nil, &su, "panel:ali", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	w = testutil.DoJSON(t, h, http.MethodGet, "/api/v1/renewals", nil, mgrToken)
+	var renewals map[string]any
+	testutil.DecodeJSON(t, w, &renewals)
+	items := renewals["items"].([]any)
+	found := false
+	for _, it := range items {
+		row := it.(map[string]any)
+		if row["mikrotik_name"] == name {
+			found = true
+			if int(row["shared_users"].(float64)) != 5 {
+				t.Fatalf("renewals live: %+v", row)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("renewal row not found")
+	}
+
+	w = testutil.DoJSON(t, h, http.MethodGet, "/api/v1/vpn-users/"+strconv.Itoa(id), nil, mgrToken)
+	testutil.DecodeJSON(t, w, &detail)
+	acts = detail["activations"].([]any)
+	if int(acts[0].(map[string]any)["shared_users"].(float64)) != 5 {
+		t.Fatalf("activation healed on read: %+v", acts[0])
+	}
+}
+
 func TestMikrotikList_cacheAndRefresh(t *testing.T) {
 	application, _, fake := testutil.NewTestApp(t)
 	h := server.New(application)
