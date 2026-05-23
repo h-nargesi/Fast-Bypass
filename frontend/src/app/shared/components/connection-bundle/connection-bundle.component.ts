@@ -122,10 +122,6 @@ import { UI_MESSAGES } from '../../../core/i18n/messages';
       color: #ef6c00;
       font-size: 0.85rem;
     }
-    .ext {
-      font-size: 0.85rem;
-      color: #1565c0;
-    }
     .preview {
       margin-top: 15pt;
     }
