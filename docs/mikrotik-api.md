@@ -35,8 +35,8 @@ MIKROTIK_PORT=8728
 
 فیلتر سمت پنل (بعد از `print` — تابع `resolve_owner` در [business-rules.md](business-rules.md)):
 
-- مدیر `ali` (separator `-`): نگه داشتن کاربرانی که `name` با `ali-` شروع شود **یا** `comment=panel:ali`
-- ادمین orphan: هیچ الگوی نام و هیچ `panel:{slug}`
+- مدیر `ali` (separator `-`): نگه داشتن کاربرانی که `name` با `ali-` شروع شود **یا** `comment` شامل توکن `panel=ali` (الگو `(^|\|)panel=ali($|\|)`) یا legacy `panel:ali`
+- ادمین orphan: هیچ الگوی نام و هیچ توکن `panel={slug}` / legacy `panel:{slug}`
 
 ### `comment` (برچسب مالکیت)
 
@@ -44,7 +44,7 @@ MIKROTIK_PORT=8728
 |--------|--------|
 | فرمت | `panel:{slug}` — مثال `panel:ali` |
 | ست توسط پنل | هر `user/add` و `user/set` موفق از API |
-| legacy | ادمین می‌تواند در Winbox برای کاربر بدون پیشوند نام ست کند |
+| legacy / Winbox | ادمین می‌تواند `panel:{slug}` یا توکن `panel={slug}` (مثلاً `notes|panel=ali`) برای کاربر بدون پیشوند نام ست کند |
 | API مدیر | `comment` در پاسخ REST **حذف** می‌شود |
 | یادداشت مشتری | فقط `vpn_user_meta.notes` — **نه** در `comment` |
 

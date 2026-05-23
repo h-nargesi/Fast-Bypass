@@ -74,7 +74,7 @@ fast-bypass/
 1. هر مدیر `slug` یکتا دارد (فقط `a-z0-9-`, ۳–۱۶ کاراکتر) و **همپوشانی پیشوندی** با slug مدیر دیگر ممنوع است (`ali` + `alireza` مجاز نیست).
 2. **قرارداد نوشتن (مدیر):** نام MikroTik = `{slug}{separator}{local_name}` — مثال: `ali-reza01`؛ مدیر فقط `local_name` می‌فرستد.
 3. **برچسب مالکیت در روتر:** `comment=panel:{slug}` — سرور در هر `user/add|set` از پنل ست می‌کند؛ مدیر در UI/API نمی‌بیند.
-4. **تشخیص مالک (`resolve_owner`):** اول تطابق `name` با الگو؛ وگرنه `comment == panel:{slug}`؛ در تضاد، **نام مقدم است** ([business-rules.md](business-rules.md)).
+4. **تشخیص مالک (`resolve_owner`):** اول تطابق `name` با الگو؛ وگرنه توکن `panel={slug}` در `comment` (یا legacy `panel:{slug}`)؛ در تضاد، **نام مقدم است** ([business-rules.md](business-rules.md)).
 5. **یادداشت کسب‌وکار:** `vpn_user_meta.notes` در SQLite — جدا از `comment` روتر.
 6. لیست کاربران مدیر: فیلتر روی کش/print روتر با `resolve_owner` = همان مدیر.
 

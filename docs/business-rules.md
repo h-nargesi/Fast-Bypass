@@ -18,7 +18,7 @@
 | الگوی نامگذاری | `{slug}{separator}` — مثال: slug=`ali` و separator=`-` → الگو `ali-` |
 | جداکننده | از env: `USERNAME_PREFIX_SEPARATOR` (پیش‌فرض `_`؛ می‌توان `-` بود) |
 | برچسب مالکیت در روتر | `comment` = `panel:{slug}` — مثال: `panel:ali` |
-| تشخیص مالک (خواندن) | **نام** با الگو **یا** `comment` برابر `panel:{slug}` (جزئیات [تابع مالک](#تابع-مالک-resolve_owner)) |
+| تشخیص مالک (خواندن) | **نام** با الگو **یا** `comment` شامل توکن `panel={slug}` (جزئیات [تابع مالک](#تابع-مالک-resolve_owner)) |
 | قرارداد نوشتن (مدیر) | ایجاد/ویرایش کاربر VPN **فقط** با قانون نام (`local_name` + `name_prefix`)؛ سرور `comment` را خودکار ست می‌کند |
 | همپوشانی الگو | **ممنوع** — `slug`‌های مدیران نباید پیشوند یکدیگر باشند (جزئیات زیر) |
 | ویرایش نام | **مجاز نیست** بعد از ایجاد (حذف + ایجاد مجدد در صورت نیاز) |
@@ -46,11 +46,16 @@
 
 ```
 الگو(m)   = slug(m) + USERNAME_PREFIX_SEPARATOR
-برچسب(m)  = "panel:" + slug(m)
+برچسب(m)  = "panel:" + slug(m)          # نوشتن از پنل
+توکن(m)   = "panel=" + slug(m)          # خواندن از comment روتر
+
+comment_مالک(comment, m) ⟺
+  comment == برچسب(m)                   # legacy
+  ∨ (^|"|") + توکن(m) + ($|"|")          # توکن در comment ساده یا pipe-separated
 
 resolve_owner(name, comment):
   اگر ∃ مدیر m: name.startsWith(الگو(m))  → m     # یکتا (SLUG_OVERLAPS)
-  وگرنه اگر ∃ مدیر m: comment == برچسب(m) → m
+  وگرنه اگر ∃ مدیر m: comment_مالک(comment, m) → m
   وگرنه → بدون مدیر (orphan)
 ```
 
@@ -81,6 +86,7 @@ resolve_owner(name, comment):
 - `ali-reza01` + `comment=panel:ali` → متعلق به `ali` (هر دو معیار)
 - `ali-reza01` بدون comment → متعلق به `ali` (فقط نام)
 - `reza` + `comment=panel:ali` → متعلق به `ali` (legacy؛ فقط comment)
+- `reza` + `comment=notes|panel=ali` → متعلق به `ali` (توکن `panel=ali` در comment ترکیبی)
 - `guest01` بدون comment → **orphan**
 - `ali_reza` (separator اشتباه) + `comment=panel:ali` → متعلق به `ali` (comment نجات می‌دهد)
 
@@ -355,7 +361,7 @@ used_quota = SUM(shared-users) برای هر vpn_user متعلق به مدیر �
 ```
 orphan ⟺
   ∀ مدیر m: ¬ name.startsWith(الگو(m))
-  ∧ ∀ مدیر m: comment ≠ "panel:" + slug(m)
+  ∧ ∀ مدیر m: ¬ comment_مالک(comment, m)
 ```
 
 معیار حقیقت: **`name` و `comment` در MikroTik** (نه فقط SQLite).

@@ -21,7 +21,24 @@ func (r Registry) Pattern(m ManagerInfo) string {
 }
 
 func (r Registry) PanelComment(m ManagerInfo) string {
-	return "panel:" + m.Slug
+	return "panel=" + m.Slug
+}
+
+// commentMatchesPanel reports whether comment contains panel=slug as a whole token:
+// (^|\|)panel={slug}($|\|), or legacy exact panel:{slug}.
+func (r Registry) commentMatchesPanel(comment string, m ManagerInfo) bool {
+	token := r.PanelComment(m)
+
+	if comment == token {
+		return true
+	}
+	if strings.HasPrefix(comment, token+"|") {
+		return true
+	}
+	if strings.HasSuffix(comment, "|"+token) {
+		return true
+	}
+	return strings.Contains(comment, "|"+token+"|")
 }
 
 // Resolve returns manager ID or 0 if orphan.
@@ -32,7 +49,7 @@ func (r Registry) Resolve(name, comment string) int64 {
 		}
 	}
 	for _, m := range r.Managers {
-		if comment == r.PanelComment(m) {
+		if r.commentMatchesPanel(comment, m) {
 			return m.ID
 		}
 	}
@@ -51,7 +68,7 @@ func (r Registry) OwnerMismatch(name, comment string, resolvedID int64) bool {
 		}
 	}
 	for _, m := range r.Managers {
-		if comment == r.PanelComment(m) {
+		if r.commentMatchesPanel(comment, m) {
 			commentID = m.ID
 			break
 		}

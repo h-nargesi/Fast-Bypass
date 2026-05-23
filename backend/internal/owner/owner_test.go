@@ -33,6 +33,28 @@ func TestResolve_byCommentLegacy(t *testing.T) {
 	}
 }
 
+func TestResolve_byCommentPanelToken(t *testing.T) {
+	reg := testRegistry()
+	cases := []struct {
+		name    string
+		comment string
+		want    int64
+	}{
+		{"reza", "panel=ali", 1},
+		{"reza", "notes|panel=ali", 1},
+		{"reza", "panel=ali|notes", 1},
+		{"reza", "a|panel=ali|b", 1},
+		{"reza", "panel=alice", 0},
+		{"reza", "panel=alireza", 0},
+		{"reza", "x|panel=aliextra", 0},
+	}
+	for _, tc := range cases {
+		if got := reg.Resolve(tc.name, tc.comment); got != tc.want {
+			t.Errorf("Resolve(%q, %q) = %d, want %d", tc.name, tc.comment, got, tc.want)
+		}
+	}
+}
+
 func TestResolve_orphan(t *testing.T) {
 	reg := testRegistry()
 	if got := reg.Resolve("guest01", ""); got != 0 {
@@ -45,8 +67,14 @@ func TestOwnerMismatch(t *testing.T) {
 	if !reg.OwnerMismatch("ali-reza01", "panel:bob", 1) {
 		t.Fatal("expected mismatch when name=ali and comment=panel:bob")
 	}
+	if !reg.OwnerMismatch("ali-reza01", "notes|panel=bob", 1) {
+		t.Fatal("expected mismatch when name=ali and comment contains panel=bob")
+	}
 	if reg.OwnerMismatch("ali-reza01", "panel:ali", 1) {
 		t.Fatal("expected no mismatch when aligned")
+	}
+	if reg.OwnerMismatch("ali-reza01", "notes|panel=ali", 1) {
+		t.Fatal("expected no mismatch when aligned with panel= token")
 	}
 	if reg.OwnerMismatch("guest01", "", 0) {
 		t.Fatal("orphan should not mismatch")
