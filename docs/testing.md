@@ -35,7 +35,7 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | quota / پروفایل فعال | ✓ quota | ✓ api + acceptance |
 | مدیر فقط کاربران خود | — | ✓ acceptance |
 | مدیر بدون `mikrotik_comment` | — | ✓ acceptance |
-| `comment=panel:{slug}` روی روتر | — | ✓ acceptance |
+| `comment="panel={slug}"` روی روتر | — | ✓ acceptance |
 | ایجاد + مبلغ activation | — | ✓ acceptance |
 | تمدید با quota پر | — | ✓ api |
 | رد ایجاد / افزایش shared-users | — | ✓ acceptance |
@@ -285,7 +285,7 @@ go test -tags=vm ./internal/vmtest/... -count=1 -timeout=15m
 | تست | محتوا |
 |-----|--------|
 | `TestRouterOS_pingAndProfile` | اتصال api-ssl |
-| `TestRouterOS_createUser_panelComment` | `comment=panel:…` روی روتر |
+| `TestRouterOS_createUser_panelComment` | `comment="panel=…"` روی روتر |
 | `TestRouterOS_assignProfile` | `user-profile/add` |
 | `TestE2E_createVPNUser_onRouter` | `POST /vpn-users` + بررسی روتر |
 | `TestE2E_managerListIsolation` | جداسازی لیست + legacy `comment` |
@@ -296,6 +296,6 @@ go test -tags=vm ./internal/vmtest/... -count=1 -timeout=15m
 - [ ] از میزبان به `MIKROTIK_HOST:8729` دسترسی TCP
 - [ ] `/user-manager/user print` از API یا Winbox
 - [ ] پروفایل `profile-open-2M-30d` (یا نام env) وجود دارد
-- [ ] ایجاد کاربر با پیشوند (مثلاً `ali-test01`)؛ در روتر `comment=panel:ali` بررسی شود
-- [ ] legacy: کاربر `reza` + `comment=panel:ali` در لیست مدیر `ali` دیده شود
+- [ ] ایجاد کاربر با پیشوند (مثلاً `ali-test01`)؛ در روتر `comment="panel=ali"` بررسی شود
+- [ ] legacy: کاربر `reza` + `comment="panel=ali"` در لیست مدیر `ali` دیده شود
 - [ ] مدیر در API پاسخ `mikrotik_comment` نداشته باشد

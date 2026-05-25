@@ -2,7 +2,7 @@
 
 عنوان این پنل: پنل سبلان
 
-پنل وب برای مدیریت کاربران **MikroTik User Manager** از طریق `api-ssl`. هر **مدیر** فقط کاربران متعلق به خود را می‌بیند (پیشوند نام یا `comment=panel:{slug}`) و با قانون نام می‌سازد؛ **ادمین** کل سیستم و `comment` روتر را می‌بیند.
+پنل وب برای مدیریت کاربران **MikroTik User Manager** از طریق `api-ssl`. هر **مدیر** فقط کاربران متعلق به خود را می‌بیند (پیشوند نام یا `comment="panel={slug}"`) و با قانون نام می‌سازد؛ **ادمین** کل سیستم و `comment` روتر را می‌بیند.
 
 ## پیش‌نیازها
 
@@ -75,7 +75,7 @@ cd frontend && npm install && npm start
 | `name`         | نام ورود VPN (در پنل: `{prefix}{local_name}`)                                                       |
 | `password`     | رمز VPN                                                                                             |
 | `shared-users` | حداکثر اتصال همزمان این کاربر                                                                       |
-| `comment`      | برچسب مالکیت پنل: `panel:{slug}` — سرور ست می‌کند؛ مدیر نمی‌بیند. یادداشت مشتری در SQLite (`notes`) |
+| `comment`      | برچسب مالکیت پنل: `panel={slug}` — سرور ست می‌کند؛ مدیر نمی‌بیند. یادداشت مشتری در SQLite (`notes`) |
 
 
 ### کاربر-پروفایل — `/user-manager/user-profile`
@@ -95,8 +95,8 @@ cd frontend && npm install && npm start
 - یک پروفایل قابل انتساب در فاز اول (قابل تنظیم در env)
 - متادیتا در پنل: تماس، توضیحات؛ مبلغ پرداخت **اختیاری** به ازای هر دوره (۰ یا خالی مجاز)
 - **تحویل به مشتری:** کارت اتصال در جزئیات کاربر (OpenVPN/L2TP، کپی، دانلود `.ovpn`) — [user-flows.md](docs/user-flows.md)
-- **مالکیت:** `resolve_owner` از **نام** (`{slug}{separator}…`) یا `**comment=panel:{slug}`**؛ مدیر فقط با قانون نام می‌سازد
-- **ادمین:** همه VPN + `mikrotik_comment`؛ orphan = بدون تطابق نام و comment؛ نسبت legacy با `panel:{slug}` در Winbox
+- **مالکیت:** `resolve_owner` از **نام** (`{slug}{separator}…`) یا `**comment="panel={slug}"`**؛ مدیر فقط با قانون نام می‌سازد
+- **ادمین:** همه VPN + `mikrotik_comment`؛ orphan = بدون تطابق نام و comment؛ نسبت legacy با `panel={slug}` در Winbox
 - **دفتر تمدید:** ادمین با فیلتر مدیر (پیش‌فرض orphan) + تسویه؛ مدیر فقط لیست خود و وضعیت تسویه (بدون تغییر) — [user-flows.md](docs/user-flows.md)
 
 جزئیات در [docs/business-rules.md](docs/business-rules.md).

@@ -151,7 +151,7 @@ sequenceDiagram
 ```
 
 - پیشوند از `GET /me` → `name_prefix` (غیرقابل ویرایش)
-- API فقط `local_name` می‌گیرد؛ سرور `mikrotik_name = name_prefix + local_name` و `comment=panel:{slug}` می‌سازد
+- API فقط `local_name` می‌گیرد؛ سرور `mikrotik_name = name_prefix + local_name` و `comment="panel={slug}"` می‌سازد
 - فیلد **یادداشت** در فرم = `notes` (SQLite) — نه `comment` روتر
 - **اطلاعات تماس** = `contact_info`
 - اعتبارسنجی طول: `len(name_prefix) + len(local_name) ≤ 32`
@@ -314,7 +314,7 @@ sequenceDiagram
   participant DB as SQLite
   M->>API: POST /vpn-users (assign_profile=true)
   API->>API: check quota
-  API->>MT: user/add (name + comment=panel:slug) + user-profile/add
+  API->>MT: user/add (name + comment="panel=slug") + user-profile/add
   MT-->>API: ok
   API->>DB: vpn_user_meta + profile_activation
   API-->>M: 201
@@ -366,9 +366,9 @@ API: `GET /admin/vpn-users` — query: `manager_id`, `orphan=true`, `q`, `active
 │  فیلتر: [مدیر ▼]  [جستجو…]  [بروزرسانی]                                 │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ نام کاربر      │ مدیر          │ وضعیت │ comment روتر │                │
-│ ali-reza01     │ علی احمدی     │ فعال  │ panel:ali    │  [ویرایش]      │
+│ ali-reza01     │ علی احمدی     │ فعال  │ panel=ali    │  [ویرایش]      │
 │ reza           │ بدون مدیر     │ —     │ —            │  [ویرایش]      │
-│ ali-shop       │ علی احمدی ⚠   │ فعال  │ panel:bob    │  [ویرایش]      │
+│ ali-shop       │ علی احمدی ⚠   │ فعال  │ panel=bob    │  [ویرایش]      │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -384,7 +384,7 @@ API: `GET /admin/vpn-users/:id`؛ writeها از همان مسیرهای زیر�
 |------|--------|
 | مدیر | `manager_display_name` + `@username`؛ orphan → «بدون مدیر» + راهنمای خروج از orphan |
 | پیشوند مدیر | `manager_slug` + separator → `name_prefix` (مثلاً `ali-`) — اگر مالک از نام/comment مشخص است |
-| comment روتر | `mikrotik_comment` — قابل مشاهده؛ اصلاح مالکیت واقعی در روتر با rename یا `panel:{slug}` (نه فقط DB) |
+| comment روتر | `mikrotik_comment` — قابل مشاهده؛ اصلاح مالکیت واقعی در روتر با rename یا `panel={slug}` (نه فقط DB) |
 | ناهماهنگی DB | اگر `manager_id` در SQLite ≠ `resolve_owner` → بنر «ناهماهنگی DB» |
 
 بقیه صفحه همان `/users/:id` مدیر: کارت اتصال مشتری، **فرم ویرایش یکپارچه** (فعال، رمز VPN، اتصال همزمان، تماس، یادداشت)، assign، رزرو، تاریخچه — از `/admin/vpn-users/:id/connection` و `.../ovpn` در صورت نیاز.
@@ -393,7 +393,7 @@ API: `GET /admin/vpn-users/:id`؛ writeها از همان مسیرهای زیر�
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  ali-reza01                                                              │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  مدیر: علی احمدی (ali)    پیشوند: ali-    comment: panel:ali            │
+│  مدیر: علی احمدی (ali)    پیشوند: ali-    comment: panel=ali            │
 │  [⚠ ناهماهنگی DB — مالک واقعی: علی]                                      │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  (کارت اطلاعات اتصال برای مشتری — مثل مدیر)                              │
@@ -420,13 +420,13 @@ API: `GET /admin/vpn-users/:id`؛ writeها از همان مسیرهای زیر�
 ## سناریو ۵ — ادمین orphan و legacy
 
 1. `/admin/users?orphan=true`  
-2. لیست کاربرانی که `resolve_owner` = بدون مدیر (نه الگوی نام، نه `panel:{slug}`)  
-   - مثال: تنها مدیر `ali-` / `panel:ali` → `reza` بدون comment در orphan؛ `ali-shop` نیست  
+2. لیست کاربرانی که `resolve_owner` = بدون مدیر (نه الگوی نام، نه `panel={slug}`)  
+   - مثال: تنها مدیر `ali-` / `panel=ali` → `reza` بدون comment در orphan؛ `ali-shop` نیست  
 3. **خروج از orphan:**  
    - rename: `reza` → `ali-reza` (حذف + ایجاد)، یا  
-   - legacy: در Winbox `comment=panel:ali` (بدون تغییر نام)  
+   - legacy: در Winbox `comment="panel=ali"` (بدون تغییر نام)  
 4. لیست ادمین ستون/فیلد `mikrotik_comment` دارد؛ مدیر هرگز نمی‌بیند  
-5. تضاد (`ali-reza` + `panel:bob`) → هشدار `owner_mismatch`؛ مالک = `ali`  
+5. تضاد (`ali-reza` + `panel=bob`) → هشدار `owner_mismatch`؛ مالک = `ali`  
 6. PATCH `manager_id` فقط وقتی `resolve_owner` از قبل مالک دارد (رفع ناهماهنگی DB)
 
 ## کامپوننت‌های پیشنهادی Angular

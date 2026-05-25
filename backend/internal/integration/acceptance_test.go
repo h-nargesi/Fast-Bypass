@@ -34,8 +34,8 @@ func TestManager_listIsolation_and_legacyComment(t *testing.T) {
 		"local_name": "u1", "password": "Secret123", "shared_users": 1,
 	}, aliToken)
 
-	_ = fake.AddUser("reza", "Secret123", "panel:ali", 1, false)
-	_ = fake.AddUser("bob-only", "Secret123", "panel:bob", 1, false)
+	_ = fake.AddUser("reza", "Secret123", "panel=ali", 1, false)
+	_ = fake.AddUser("bob-only", "Secret123", "panel=bob", 1, false)
 
 	w := testutil.DoJSON(t, h, http.MethodGet, "/api/v1/vpn-users", nil, aliToken)
 	var list map[string]any
@@ -105,7 +105,7 @@ func TestCreateVPN_setsPanelComment_and_activationAmount(t *testing.T) {
 	var paidCreated map[string]any
 	testutil.DecodeJSON(t, w, &paidCreated)
 	u, _ := fake.GetUser("ali-paid")
-	if u.Comment != "panel:ali" {
+	if u.Comment != "panel=ali" {
 		t.Fatalf("comment on router: %q", u.Comment)
 	}
 	paidID := int(paidCreated["id"].(float64))
@@ -176,7 +176,7 @@ func TestAdmin_vpnUsers_orphanFilter_and_ownerFields(t *testing.T) {
 	testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
 
 	_ = fake.AddUser("guest99", "Secret123", "", 2, false)
-	_ = fake.AddUser("ali-z", "Secret123", "panel:ali", 1, false)
+	_ = fake.AddUser("ali-z", "Secret123", "panel=ali", 1, false)
 
 	w := testutil.DoJSON(t, h, http.MethodGet, "/api/v1/admin/vpn-users?orphan=true", nil, adminToken)
 	var resp map[string]any
@@ -197,7 +197,7 @@ func TestAdmin_vpnUsers_orphanFilter_and_ownerFields(t *testing.T) {
 		row = it.(map[string]any)
 		if row["mikrotik_name"] == "ali-z" {
 			found = true
-			if row["manager_slug"] != "ali" || row["mikrotik_comment"] != "panel:ali" {
+			if row["manager_slug"] != "ali" || row["mikrotik_comment"] != "panel=ali" {
 				t.Fatalf("owner fields: %+v", row)
 			}
 		}
@@ -223,7 +223,7 @@ func TestAdmin_vpnUser_createPatchDelete(t *testing.T) {
 	testutil.DecodeJSON(t, w, &created)
 	id := int(created["id"].(float64))
 	u, _ := fake.GetUser("ali-adm1")
-	if u.Comment != "panel:ali" {
+	if u.Comment != "panel=ali" {
 		t.Fatalf("comment: %q", u.Comment)
 	}
 
@@ -286,7 +286,7 @@ func TestAdmin_ownerMismatch_flag(t *testing.T) {
 	testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
 	testutil.SeedManager(t, h, adminToken, "bob", "bob", 10)
 
-	_ = fake.AddUser("ali-conflict", "Secret123", "panel:bob", 1, false)
+	_ = fake.AddUser("ali-conflict", "Secret123", "panel=bob", 1, false)
 
 	w := testutil.DoJSON(t, h, http.MethodGet, "/api/v1/admin/vpn-users", nil, adminToken)
 	var resp map[string]any
@@ -454,7 +454,7 @@ func TestSharedUsers_syncPatchAndRenewalsLive(t *testing.T) {
 	}
 
 	su := 5
-	if err := fake.SetUser(name, nil, &su, "panel:ali", nil); err != nil {
+	if err := fake.SetUser(name, nil, &su, "panel=ali", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -503,7 +503,7 @@ func TestMikrotikList_cacheAndRefresh(t *testing.T) {
 	}
 
 	// تغییر مستقیم روی fake بدون عبور از API — کش باید قدیمی بماند
-	_ = fake.AddUser("ali-extra", "Secret123", "panel:ali", 1, false)
+	_ = fake.AddUser("ali-extra", "Secret123", "panel=ali", 1, false)
 
 	w = testutil.DoJSON(t, h, http.MethodGet, "/api/v1/vpn-users", nil, mgrToken)
 	testutil.DecodeJSON(t, w, &list)

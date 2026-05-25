@@ -21,14 +21,14 @@ func TestResolve_byNamePrefix(t *testing.T) {
 	if got := reg.Resolve("ali-reza01", ""); got != 1 {
 		t.Fatalf("Resolve() = %d, want 1", got)
 	}
-	if got := reg.Resolve("bob-user1", "panel:ali"); got != 2 {
+	if got := reg.Resolve("bob-user1", "panel=ali"); got != 2 {
 		t.Fatalf("name prefix wins: got %d, want 2", got)
 	}
 }
 
 func TestResolve_byCommentLegacy(t *testing.T) {
 	reg := testRegistry()
-	if got := reg.Resolve("reza", "panel:ali"); got != 1 {
+	if got := reg.Resolve("reza", "panel=ali"); got != 1 {
 		t.Fatalf("legacy comment: got %d, want 1", got)
 	}
 }
@@ -64,13 +64,13 @@ func TestResolve_orphan(t *testing.T) {
 
 func TestOwnerMismatch(t *testing.T) {
 	reg := testRegistry()
-	if !reg.OwnerMismatch("ali-reza01", "panel:bob", 1) {
-		t.Fatal("expected mismatch when name=ali and comment=panel:bob")
+	if !reg.OwnerMismatch("ali-reza01", "panel=bob", 1) {
+		t.Fatal("expected mismatch when name=ali and comment='panel=bob'")
 	}
 	if !reg.OwnerMismatch("ali-reza01", "notes|panel=bob", 1) {
 		t.Fatal("expected mismatch when name=ali and comment contains panel=bob")
 	}
-	if reg.OwnerMismatch("ali-reza01", "panel:ali", 1) {
+	if reg.OwnerMismatch("ali-reza01", "panel=ali", 1) {
 		t.Fatal("expected no mismatch when aligned")
 	}
 	if reg.OwnerMismatch("ali-reza01", "notes|panel=ali", 1) {
@@ -108,7 +108,7 @@ func TestSlugOverlaps(t *testing.T) {
 
 func TestPanelComment(t *testing.T) {
 	reg := testRegistry()
-	if got := reg.PanelComment(ManagerInfo{Slug: "ali"}); got != "panel:ali" {
+	if got := reg.PanelComment(ManagerInfo{Slug: "ali"}); got != "panel=ali" {
 		t.Fatalf("PanelComment = %q", got)
 	}
 }

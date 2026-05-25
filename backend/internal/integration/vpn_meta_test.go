@@ -192,7 +192,7 @@ func TestManager_getAndPatchByName_createsMeta(t *testing.T) {
 	h := server.New(application)
 	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
 	_, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
-	if err := fake.AddUser("ali-routeronly", "Secret123", "panel:ali", 2, false); err != nil {
+	if err := fake.AddUser("ali-routeronly", "Secret123", "panel=ali", 2, false); err != nil {
 		t.Fatal(err)
 	}
 

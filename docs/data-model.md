@@ -83,13 +83,13 @@ DDL کامل: [db/schema.sql](../db/schema.sql).
 | اتصال همزمان | همان | `shared-users` |
 | پروفایل | `/user-manager/user-profile` | `profile`, `user` |
 | وضعیت/پایان | همان | `state`, `end-time` (read-only) |
-| برچسب مالکیت | `/user-manager/user` | `comment` = `panel:{slug}` — فقط سرور/ادمین؛ **خارج از پاسخ API مدیر** |
+| برچسب مالکیت | `/user-manager/user` | `comment` = `panel={slug}` — فقط سرور/ادمین؛ **خارج از پاسخ API مدیر** |
 
 ### `comment` در مقابل `notes`
 
 | | `comment` (MikroTik) | `notes` (SQLite) |
 |--|----------------------|------------------|
-| فرمت | `panel:{slug}` ثابت | متن آزاد |
+| فرمت | `panel={slug}` ثابت | متن آزاد |
 | چه کسی می‌بیند | فقط **ادمین** (`mikrotik_comment`) | **مدیر** + ادمین |
 | چه کسی می‌نویسد | سرور پنل (هر write)؛ ادمین در Winbox برای legacy | مدیر در `PATCH /vpn-users/:id` |
 | نقش | مالکیت / import legacy | یادداشت مشتری |
@@ -108,6 +108,6 @@ DDL کامل: [db/schema.sql](../db/schema.sql).
 - لیست کاربران مدیر: enrich از MikroTik؛ نگه‌داشتن ردیف‌هایی که `resolve_owner` = `manager_id` جاری
 - Orphans: `resolve_owner` = بدون مدیر
 - ناهماهنگی DB: `manager_id` ≠ نتیجه `resolve_owner` → هشدار
-- تضاد روتر: نام با الگوی `m1` ولی `comment=panel:m2` → هشدار ادمین؛ مالک = `m1`
+- تضاد روتر: نام با الگوی `m1` ولی `comment="panel=m2"` → هشدار ادمین؛ مالک = `m1`
 - مصرف quota: جمع `shared-users` از API برای کاربرانی که `state` فعال است (منطق در [business-rules.md](business-rules.md))
 - دفتر تمدید: `profile_activations` JOIN `vpn_user_meta`؛ scope با `resolve_owner` (مدیر / orphan) — [api.md](api.md#admin--renewals-ledger)، مدیر: `GET /renewals`

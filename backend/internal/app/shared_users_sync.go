@@ -7,7 +7,7 @@ import (
 )
 
 func (a *App) mikrotikSharedUsersByName() (map[string]int, error) {
-	users, err := a.MT.ListUsers()
+	users, err := a.listUsers(context.Background(), true)
 	if err != nil {
 		return nil, err
 	}

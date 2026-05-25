@@ -71,7 +71,7 @@ Errors: `{ "error": { "code": "QUOTA_EXCEEDED", "message": "..." } }`
 
 `amount_paid` و `currency` **اختیاری** (حذف یا `null` = بدون ثبت مبلغ؛ `0` مجاز است).
 
-سرور پس از `user/add` در روتر: `name = name_prefix + local_name` و `comment = panel:{slug}` (مدیر این فیلدها را ارسال نمی‌کند).
+سرور پس از `user/add` در روتر: `name = name_prefix + local_name` و `comment = panel={slug}` (مدیر این فیلدها را ارسال نمی‌کند).
 
 پاسخ 201 (بدون `mikrotik_comment`):
 
@@ -162,7 +162,7 @@ Errors: `{ "error": { "code": "QUOTA_EXCEEDED", "message": "..." } }`
 | `page`, `page_size` | پیش‌فرض 1, 20                 |
 | `refresh`           | `true` = نادیده گرفتن کش MikroTik |
 
-لیست مدیر: کاربرانی که `resolve_owner` = مدیر جاری (نام با `name_prefix` **یا** `comment=panel:{slug}`). فیلد `mikrotik_comment` در پاسخ **مدیر وجود ندارد**.
+لیست مدیر: کاربرانی که `resolve_owner` = مدیر جاری (نام با `name_prefix` **یا** `comment="panel={slug}"`). فیلد `mikrotik_comment` در پاسخ **مدیر وجود ندارد**.
 
 ## Manager — renewals ledger (read-only)
 
@@ -233,7 +233,7 @@ Query مجاز: `from`, `to`, `q`, `page`, `page_size`, `refresh` (همان مع
 {
   "id": 12,
   "mikrotik_name": "ali-reza01",
-  "mikrotik_comment": "panel:ali",
+  "mikrotik_comment": "panel=ali",
   "contact_info": "تلگرام @x",
   "notes": "یادداشت",
   "manager_id": 1,
@@ -277,7 +277,7 @@ orphan:
 }
 ```
 
-- با **`manager_id`**: سقف `shared_users` و نام/comment روتر مطابق مدیر (`name_prefix + local_name`، `comment=panel:{slug}`).
+- با **`manager_id`**: سقف `shared_users` و نام/comment روتر مطابق مدیر (`name_prefix + local_name`، `comment="panel={slug}"`).
 - **بدون `manager_id`**: `local_name` = نام کامل روتر (حداکثر ۳۲ کاراکتر)؛ `comment` خالی؛ `manager_id` در DB = `NULL` (orphan).
 
 ### PATCH `/admin/vpn-users/:id`
@@ -296,7 +296,7 @@ Body ترکیبی:
 | فیلد | قانون |
 |------|--------|
 | `password`, `shared_users`, `contact_*`, `notes` | همان اعتبارسنجی `PATCH /vpn-users/:id` |
-| `manager_id` | فقط وقتی `resolve_owner` از قبل مالک دارد — هم‌خوان‌سازی SQLite؛ **orphan را برطرف نمی‌کند** بدون rename یا `panel:{slug}` در روتر |
+| `manager_id` | فقط وقتی `resolve_owner` از قبل مالک دارد — هم‌خوان‌سازی SQLite؛ **orphan را برطرف نمی‌کند** بدون rename یا `panel={slug}` در روتر |
 
 
 ### POST `/admin/managers`

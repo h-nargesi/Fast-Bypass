@@ -38,7 +38,7 @@ func TestE2E_createVPNUser_onRouter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u.Comment != "panel:vmtst" {
+	if u.Comment != "panel=vmtst" {
 		t.Fatalf("router comment %q", u.Comment)
 	}
 	profs, err := mt.ListUserProfiles(mikrotikName)
@@ -69,10 +69,10 @@ func TestE2E_managerListIsolation(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatal(w.Body.String())
 	}
-	if err := mt.AddUser(legacy, "Secret123!", "panel:vmali", 1, false); err != nil {
+	if err := mt.AddUser(legacy, "Secret123!", "panel=vmali", 1, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := mt.AddUser("vmbob-only-"+suffix, "Secret123!", "panel:vmbob", 1, false); err != nil {
+	if err := mt.AddUser("vmbob-only-"+suffix, "Secret123!", "panel=vmbob", 1, false); err != nil {
 		t.Fatal(err)
 	}
 

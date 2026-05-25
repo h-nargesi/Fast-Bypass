@@ -35,16 +35,16 @@ MIKROTIK_PORT=8728
 
 فیلتر سمت پنل (بعد از `print` — تابع `resolve_owner` در [business-rules.md](business-rules.md)):
 
-- مدیر `ali` (separator `-`): نگه داشتن کاربرانی که `name` با `ali-` شروع شود **یا** `comment` شامل توکن `panel=ali` (الگو `(^|\|)panel=ali($|\|)`) یا legacy `panel:ali`
-- ادمین orphan: هیچ الگوی نام و هیچ توکن `panel={slug}` / legacy `panel:{slug}`
+- مدیر `ali` (separator `-`): نگه داشتن کاربرانی که `name` با `ali-` شروع شود **یا** `comment` شامل توکن `panel=ali` (الگو `(^|\|)panel=ali($|\|)`) یا legacy `panel=ali`
+- ادمین orphan: هیچ الگوی نام و هیچ توکن `panel={slug}` / legacy `panel={slug}`
 
 ### `comment` (برچسب مالکیت)
 
 | موضوع | مقدار |
 |--------|--------|
-| فرمت | `panel:{slug}` — مثال `panel:ali` |
+| فرمت | `panel={slug}` — مثال `panel=ali` |
 | ست توسط پنل | هر `user/add` و `user/set` موفق از API |
-| legacy / Winbox | ادمین می‌تواند `panel:{slug}` یا توکن `panel={slug}` (مثلاً `notes|panel=ali`) برای کاربر بدون پیشوند نام ست کند |
+| legacy / Winbox | ادمین می‌تواند `panel={slug}` یا توکن `panel={slug}` (مثلاً `notes|panel=ali`) برای کاربر بدون پیشوند نام ست کند |
 | API مدیر | `comment` در پاسخ REST **حذف** می‌شود |
 | یادداشت مشتری | فقط `vpn_user_meta.notes` — **نه** در `comment` |
 
@@ -55,7 +55,7 @@ MIKROTIK_PORT=8728
   name=ali-reza01
   password=***
   shared-users=2
-  comment=panel:ali
+  comment="panel=ali"
 ```
 
 `name` = `name_prefix + local_name`؛ مدیر فقط `local_name` به API می‌فرستد.
@@ -68,7 +68,7 @@ MIKROTIK_PORT=8728
   password=***          # اختیاری
   shared-users=3        # اختیاری
   disabled=yes|no       # غیرفعال/فعال در User Manager (نه SQLite)
-  comment=panel:ali     # همیشه بازنویسی مالک — حتی اگر فقط رمز عوض شده
+  comment="panel=ali"   # همیشه بازنویسی مالک — حتی اگر فقط رمز عوض شده
 ```
 
 در API پنل: `disabled: true` = کاربر در روتر غیرفعال (پرچم `X` در `user print`)؛ UI با چک‌باکس «فعال» نمایش داده می‌شود.

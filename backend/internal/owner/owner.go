@@ -25,7 +25,7 @@ func (r Registry) PanelComment(m ManagerInfo) string {
 }
 
 // commentMatchesPanel reports whether comment contains panel=slug as a whole token:
-// (^|\|)panel={slug}($|\|), or legacy exact panel:{slug}.
+// (^|\|)panel={slug}($|\|), or legacy exact panel={slug}.
 func (r Registry) commentMatchesPanel(comment string, m ManagerInfo) bool {
 	token := r.PanelComment(m)
 

@@ -7,7 +7,7 @@
 | فیلد | محل | نقش |
 |------|-----|------|
 | `name` | MikroTik | قرارداد نوشتن برای مدیر؛ شناسه ورود VPN |
-| `comment` | MikroTik | برچسب سیستمی پنل: `panel:{slug}` — **مدیر نمی‌بیند** |
+| `comment` | MikroTik | برچسب سیستمی پنل: `panel={slug}` — **مدیر نمی‌بیند** |
 | `notes` | SQLite (`vpn_user_meta`) | یادداشت — **مدیر می‌بیند و ویرایش می‌کند** |
 | `contact_info` | SQLite (`vpn_user_meta`) | اطلاعات تماس — اختیاری |
 
@@ -17,7 +17,7 @@
 |--------|--------|
 | الگوی نامگذاری | `{slug}{separator}` — مثال: slug=`ali` و separator=`-` → الگو `ali-` |
 | جداکننده | از env: `USERNAME_PREFIX_SEPARATOR` (پیش‌فرض `_`؛ می‌توان `-` بود) |
-| برچسب مالکیت در روتر | `comment` = `panel:{slug}` — مثال: `panel:ali` |
+| برچسب مالکیت در روتر | `comment` = `panel={slug}` — مثال: `panel=ali` |
 | تشخیص مالک (خواندن) | **نام** با الگو **یا** `comment` شامل توکن `panel={slug}` (جزئیات [تابع مالک](#تابع-مالک-resolve_owner)) |
 | قرارداد نوشتن (مدیر) | ایجاد/ویرایش کاربر VPN **فقط** با قانون نام (`local_name` + `name_prefix`)؛ سرور `comment` را خودکار ست می‌کند |
 | همپوشانی الگو | **ممنوع** — `slug`‌های مدیران نباید پیشوند یکدیگر باشند (جزئیات زیر) |
@@ -46,7 +46,7 @@
 
 ```
 الگو(m)   = slug(m) + USERNAME_PREFIX_SEPARATOR
-برچسب(m)  = "panel:" + slug(m)          # نوشتن از پنل
+برچسب(m)  = "panel=" + slug(m)          # نوشتن از پنل
 توکن(m)   = "panel=" + slug(m)          # خواندن از comment روتر
 
 comment_مالک(comment, m) ⟺
@@ -61,34 +61,34 @@ resolve_owner(name, comment):
 
 ### تضاد `name` و `comment`
 
-اگر `name` با الگوی مدیر `m1` و `comment` برابر `panel:m2` باشد و `m1 ≠ m2`:
+اگر `name` با الگوی مدیر `m1` و `comment` برابر `panel=m2` باشد و `m1 ≠ m2`:
 
 | موضوع | رفتار |
 |--------|--------|
 | مالک عملیاتی | **`m1`** (نام بر `comment` غلبه دارد) |
 | quota / NOT_OWNER / لیست مدیر | طبق `m1` |
 | UI ادمین | هشدار **«ناهماهنگی name/comment»** (اتصال VPN قطع نمی‌شود) |
-| اصلاح | ادمین در Winbox: هم‌راستا کردن `comment=panel:{slug_m1}` یا rename |
+| اصلاح | ادمین در Winbox: هم‌راستا کردن `comment="panel={slug_m1}"` یا rename |
 
 ### هر نوشتن از پنل روی `/user-manager/user`
 
 | عملیات | `name` | `comment` |
 |--------|--------|-----------|
-| مدیر `POST /vpn-users` | `name_prefix + local_name` | سرور: `panel:{slug}` |
-| مدیر `PATCH` (رمز، shared-users، …) | بدون تغییر | سرور **بازنویسی** `panel:{slug_مالک}` (حفظ در برابر دستکاری Winbox) |
-| ادمین عملیات پشتیبانی | طبق مالک resolve‌شده | `panel:{slug_مالک}` |
+| مدیر `POST /vpn-users` | `name_prefix + local_name` | سرور: `panel={slug}` |
+| مدیر `PATCH` (رمز، shared-users، …) | بدون تغییر | سرور **بازنویسی** `panel={slug_مالک}` (حفظ در برابر دستکاری Winbox) |
+| ادمین عملیات پشتیبانی | طبق مالک resolve‌شده | `panel={slug_مالک}` |
 
 مدیر در REST/UI فیلد `mikrotik_comment` **نمی‌گیرد و نمی‌بیند**.
 
 ### مثال
 
-- تنها مدیر: slug=`ali`، separator=`-` → الگو `ali-`، برچسب `panel:ali`
-- `ali-reza01` + `comment=panel:ali` → متعلق به `ali` (هر دو معیار)
+- تنها مدیر: slug=`ali`، separator=`-` → الگو `ali-`، برچسب `panel=ali`
+- `ali-reza01` + `comment="panel=ali"` → متعلق به `ali` (هر دو معیار)
 - `ali-reza01` بدون comment → متعلق به `ali` (فقط نام)
-- `reza` + `comment=panel:ali` → متعلق به `ali` (legacy؛ فقط comment)
+- `reza` + `comment="panel=ali"` → متعلق به `ali` (legacy؛ فقط comment)
 - `reza` + `comment=notes|panel=ali` → متعلق به `ali` (توکن `panel=ali` در comment ترکیبی)
 - `guest01` بدون comment → **orphan**
-- `ali_reza` (separator اشتباه) + `comment=panel:ali` → متعلق به `ali` (comment نجات می‌دهد)
+- `ali_reza` (separator اشتباه) + `comment="panel=ali"` → متعلق به `ali` (comment نجات می‌دهد)
 
 ---
 
@@ -232,7 +232,7 @@ used_quota = SUM(shared-users) برای هر vpn_user متعلق به مدیر �
 | **ویرایش `quota`** | بله (`PATCH /admin/managers/:id`) |
 | **غیرفعال‌سازی مدیر** (`is_active=0`) | بله — ترجیحاً به‌جای حذف سخت |
 | مشاهده همه VPN | بله — فیلتر `manager_id`, `orphan`؛ فیلد `mikrotik_comment` در پاسخ |
-| نسبت‌دادن legacy | بله — ست `comment=panel:{slug}` در Winbox (بدون rename) |
+| نسبت‌دادن legacy | بله — ست `comment="panel={slug}"` در Winbox (بدون rename) |
 | تغییر `slug` | فقط اگر آن مدیر **هیچ** `vpn_user_meta` نداشته باشد |
 | assign / حذف / پشتیبانی | بله برای هر کاربر |
 | دفتر تمدیدها و تسویه | بله — `/admin/renewals`، `settle-through` |
@@ -370,20 +370,20 @@ orphan ⟺
 
 | مدیر | slug | separator | الگو | برچسب comment |
 |------|------|-----------|------|----------------|
-| علی | `ali` | `-` | `ali-` | `panel:ali` |
+| علی | `ali` | `-` | `ali-` | `panel=ali` |
 
 | نام | comment | بدون مدیر؟ | مالک |
 |-----|---------|------------|------|
-| `ali-reza` | `panel:ali` | خیر | `ali` |
+| `ali-reza` | `panel=ali` | خیر | `ali` |
 | `ali-reza` | (خالی) | خیر | `ali` |
-| `reza` | `panel:ali` | خیر | `ali` (legacy) |
+| `reza` | `panel=ali` | خیر | `ali` (legacy) |
 | `reza` | (خالی) | **بله** | — |
 | `ali_reza` | (خالی) | **بله** | — |
-| `ali-reza` | `panel:bob` | خیر | `ali` (نام مقدم؛ هشدار ناهماهنگی) |
+| `ali-reza` | `panel=bob` | خیر | `ali` (نام مقدم؛ هشدار ناهماهنگی) |
 
 ### چند مدیر
 
-هر مدیر الگو و برچسب `panel:{slug}` خود را دارد؛ `slug`ها **بدون همپوشانی**. حداکثر یک مدیر از `resolve_owner` برمی‌گردد.
+هر مدیر الگو و برچسب `panel={slug}` خود را دارد؛ `slug`ها **بدون همپوشانی**. حداکثر یک مدیر از `resolve_owner` برمی‌گردد.
 
 ### مشاهده و quota
 
@@ -407,13 +407,13 @@ orphan ⟺
 | روش | مثال |
 |------|------|
 | rename در روتر | `reza` → `ali-reza` (حذف + ایجاد) |
-| ست comment (ادمین / Winbox) | `reza` + `comment=panel:ali` |
-| ایجاد از پنل مدیر | نام طبق الگو + سرور `panel:ali` |
+| ست comment (ادمین / Winbox) | `reza` + `comment="panel=ali"` |
+| ایجاد از پنل مدیر | نام طبق الگو + سرور `panel=ali` |
 
 ### همگام‌سازی (فاز ۱ — دستی)
 
 - `ali-reza` + مدیر `ali-` → متعلق به `ali`؛ در صورت نبود DB، ادمین `vpn_user_meta` می‌سازد.
-- `reza` + `panel:ali` → در لیست مدیر `ali` دیده می‌شود (بدون rename).
+- `reza` + `panel=ali` → در لیست مدیر `ali` دیده می‌شود (بدون rename).
 - `reza` بدون name و بدون comment → orphan تا یکی از روش‌های بالا.
 
 ---
@@ -506,9 +506,9 @@ orphan ⟺
 
 ## پذیرش (Acceptance) — فاز ۱
 
-- [ ] مدیر فقط کاربران با `resolve_owner` = خودش را می‌بیند (نام یا `panel:{slug}`)
+- [ ] مدیر فقط کاربران با `resolve_owner` = خودش را می‌بیند (نام یا `panel={slug}`)
 - [ ] مدیر `comment` روتر را نمی‌بیند؛ فقط `notes` پنل
-- [ ] هر `user/add|set` از پنل `comment=panel:{slug}` می‌نویسد
+- [ ] هر `user/add|set` از پنل `comment="panel={slug}"` می‌نویسد
 - [ ] ایجاد کاربر + assign با/بدون مبلغ
 - [ ] تمدید بدون افزایش used_quota حتی وقتی quota پر است
 - [ ] رد ایجاد/افزایش shared-users وقتی quota پر است
@@ -521,7 +521,7 @@ orphan ⟺
 - [ ] ادمین در `/admin/users` ستون «مدیر» (یا «بدون مدیر») می‌بیند
 - [ ] ادمین در `/admin/users/:id` مالک (`manager_display_name`, comment, `owner_mismatch`) را می‌بیند و همه فیلدهای قابل ویرایش مدیر را می‌تواند تغییر دهد
 - [ ] `GET /admin/vpn-users` هر ردیف شامل `manager_id`, `manager_display_name`, `manager_username`, `manager_slug` است
-- [ ] legacy: `reza` + `panel:ali` در لیست مدیر `ali` بدون rename
+- [ ] legacy: `reza` + `panel=ali` در لیست مدیر `ali` بدون rename
 - [ ] bootstrap ادمین از env
 - [ ] رد slug همپوشان (`ali` + `alireza`)
 - [ ] کش لیست با TTL و باطل‌سازی پس از write

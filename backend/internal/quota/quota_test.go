@@ -34,8 +34,8 @@ func TestUsedForManager_skipsDisabled(t *testing.T) {
 	reg := owner.Registry{Separator: "-", Managers: []owner.ManagerInfo{{ID: 1, Slug: "ali"}}}
 	now := time.Now()
 	users := []mikrotik.User{
-		{Name: "ali-a", Comment: "panel:ali", SharedUsers: 5, Disabled: true},
-		{Name: "ali-b", Comment: "panel:ali", SharedUsers: 2, Disabled: false},
+		{Name: "ali-a", Comment: "panel=ali", SharedUsers: 5, Disabled: true},
+		{Name: "ali-b", Comment: "panel=ali", SharedUsers: 2, Disabled: false},
 	}
 	profs := map[string][]mikrotik.UserProfile{
 		"ali-a": {{State: "active", EndTime: now.Add(time.Hour).Format(time.RFC3339)}},
@@ -56,9 +56,9 @@ func TestUsedForManager(t *testing.T) {
 	}
 	now := time.Now()
 	users := []mikrotik.User{
-		{Name: "ali-a", Comment: "panel:ali", SharedUsers: 2},
-		{Name: "ali-b", Comment: "panel:ali", SharedUsers: 3},
-		{Name: "ali-c", Comment: "panel:ali", SharedUsers: 5},
+		{Name: "ali-a", Comment: "panel=ali", SharedUsers: 2},
+		{Name: "ali-b", Comment: "panel=ali", SharedUsers: 3},
+		{Name: "ali-c", Comment: "panel=ali", SharedUsers: 5},
 	}
 	profiles := map[string][]mikrotik.UserProfile{
 		"ali-a": {{State: "active", EndTime: now.Add(time.Hour).Format(time.RFC3339)}},
