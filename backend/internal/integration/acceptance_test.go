@@ -215,11 +215,11 @@ func TestAdmin_stats_totalsAndByManager(t *testing.T) {
 	testutil.SeedManager(t, h, adminToken, "bob", "bob", 10)
 
 	prof := "profile-open-2M-30d"
-	_ = fake.AddUser("ali-a", "Secret123", "panel:ali", 2, false)
+	_ = fake.AddUser("ali-a", "Secret123", "panel=ali", 2, false)
 	_ = fake.AddUserProfile("ali-a", prof)
-	_ = fake.AddUser("ali-off", "Secret123", "panel:ali", 3, true)
+	_ = fake.AddUser("ali-off", "Secret123", "panel=ali", 3, true)
 	_ = fake.AddUserProfile("ali-off", prof)
-	_ = fake.AddUser("bob-x", "Secret123", "panel:bob", 4, false)
+	_ = fake.AddUser("bob-x", "Secret123", "panel=bob", 4, false)
 	_ = fake.AddUserProfile("bob-x", prof)
 	_ = fake.AddUser("orphan1", "Secret123", "", 1, false)
 	_ = fake.AddUserProfile("orphan1", prof)

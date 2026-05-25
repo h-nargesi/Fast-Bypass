@@ -103,10 +103,10 @@ func TestAggregateByOwner(t *testing.T) {
 	future := now.Add(time.Hour).Format(time.RFC3339)
 	past := now.Add(-time.Hour).Format(time.RFC3339)
 	users := []mikrotik.User{
-		{Name: "ali-a", Comment: "panel:ali", SharedUsers: 2},
-		{Name: "ali-b", Comment: "panel:ali", SharedUsers: 3, Disabled: true},
-		{Name: "ali-c", Comment: "panel:ali", SharedUsers: 5},
-		{Name: "bob-x", Comment: "panel:bob", SharedUsers: 4},
+		{Name: "ali-a", Comment: "panel=ali", SharedUsers: 2},
+		{Name: "ali-b", Comment: "panel=ali", SharedUsers: 3, Disabled: true},
+		{Name: "ali-c", Comment: "panel=ali", SharedUsers: 5},
+		{Name: "bob-x", Comment: "panel=bob", SharedUsers: 4},
 		{Name: "orphan1", Comment: "", SharedUsers: 1},
 	}
 	profiles := map[string][]mikrotik.UserProfile{
