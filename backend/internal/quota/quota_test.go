@@ -90,3 +90,48 @@ func TestCheckAdd_and_CheckIncrease(t *testing.T) {
 		t.Fatal("5-2+8 > 10 should fail")
 	}
 }
+
+func TestAggregateByOwner(t *testing.T) {
+	reg := owner.Registry{
+		Separator: "-",
+		Managers: []owner.ManagerInfo{
+			{ID: 1, Slug: "ali"},
+			{ID: 2, Slug: "bob"},
+		},
+	}
+	now := time.Now()
+	future := now.Add(time.Hour).Format(time.RFC3339)
+	past := now.Add(-time.Hour).Format(time.RFC3339)
+	users := []mikrotik.User{
+		{Name: "ali-a", Comment: "panel:ali", SharedUsers: 2},
+		{Name: "ali-b", Comment: "panel:ali", SharedUsers: 3, Disabled: true},
+		{Name: "ali-c", Comment: "panel:ali", SharedUsers: 5},
+		{Name: "bob-x", Comment: "panel:bob", SharedUsers: 4},
+		{Name: "orphan1", Comment: "", SharedUsers: 1},
+	}
+	profiles := map[string][]mikrotik.UserProfile{
+		"ali-a": {{State: "active", EndTime: future}},
+		"ali-b": {{State: "active", EndTime: future}},
+		"ali-c": {{State: "expired", EndTime: past}},
+		"bob-x": {{State: "active", EndTime: future}},
+		"orphan1": {{State: "active", EndTime: future}},
+	}
+	total, orphan, byMgr, err := AggregateByOwner(reg, users, func(name string) ([]mikrotik.UserProfile, error) {
+		return profiles[name], nil
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total.VPNUsers != 3 || total.Connections != 7 {
+		t.Fatalf("total = %+v, want 3 active users and 7 connections (2+4+1)", total)
+	}
+	if orphan.VPNUsers != 1 || orphan.Connections != 1 {
+		t.Fatalf("orphan = %+v", orphan)
+	}
+	if byMgr[1].VPNUsers != 1 || byMgr[1].Connections != 2 {
+		t.Fatalf("ali = %+v, want 1 active user and 2 connections", byMgr[1])
+	}
+	if byMgr[2].VPNUsers != 1 || byMgr[2].Connections != 4 {
+		t.Fatalf("bob = %+v", byMgr[2])
+	}
+}

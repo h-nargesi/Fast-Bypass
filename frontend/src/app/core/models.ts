@@ -137,3 +137,24 @@ export interface ManagerRow {
   used_quota: number;
   is_active: boolean;
 }
+
+export interface AdminScopeStats {
+  vpn_users: number;
+  connections: number;
+}
+
+export interface AdminManagerStats {
+  manager_id: number;
+  display_name: string;
+  username: string;
+  quota: number;
+  vpn_users: number;
+  connections: number;
+}
+
+export interface AdminStatsResponse {
+  manager_count: number;
+  totals: AdminScopeStats;
+  orphan: AdminScopeStats;
+  by_manager: AdminManagerStats[];
+}

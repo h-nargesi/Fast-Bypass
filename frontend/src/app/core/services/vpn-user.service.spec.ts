@@ -242,4 +242,31 @@ describe('AdminService', () => {
       is_active: true,
     });
   });
+
+  it('loads admin stats via GET /admin/stats', () => {
+    const svc = TestBed.inject(AdminService);
+    svc.getStats(true).subscribe((s) => {
+      expect(s.manager_count).toBe(1);
+      expect(s.totals.connections).toBe(5);
+      expect(s.by_manager[0].connections).toBe(5);
+    });
+    const req = http.expectOne(
+      (r) => r.url === '/api/v1/admin/stats' && r.params.get('refresh') === 'true',
+    );
+    req.flush({
+      manager_count: 1,
+      totals: { vpn_users: 2, connections: 5 },
+      orphan: { vpn_users: 0, connections: 0 },
+      by_manager: [
+        {
+          manager_id: 1,
+          display_name: 'علی',
+          username: 'ali',
+          quota: 10,
+          vpn_users: 2,
+          connections: 5,
+        },
+      ],
+    });
+  });
 });

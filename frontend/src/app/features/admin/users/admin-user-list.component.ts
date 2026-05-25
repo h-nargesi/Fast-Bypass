@@ -126,14 +126,22 @@ export class AdminUserListComponent implements OnInit {
   ngOnInit(): void {
     this.admin.listManagers().subscribe((r) => this.managers.set(r.items));
     this.route.queryParams.subscribe((q) => {
-      if (q['orphan'] === 'true') this.filterMode = 'orphan';
+      if (q['orphan'] === 'true') {
+        this.filterMode = 'orphan';
+      } else if (q['manager_id']) {
+        this.filterMode = 'm:' + q['manager_id'];
+      }
       this.load(false);
     });
   }
 
   onFilterChange(): void {
     const qp: Record<string, string> = {};
-    if (this.filterMode === 'orphan') qp['orphan'] = 'true';
+    if (this.filterMode === 'orphan') {
+      qp['orphan'] = 'true';
+    } else if (this.filterMode.startsWith('m:')) {
+      qp['manager_id'] = this.filterMode.slice(2);
+    }
     void this.router.navigate([], { queryParams: qp });
     this.load(false);
   }

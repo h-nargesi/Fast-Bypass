@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiClient } from '../api/api-client.service';
-import { AdminVpnListItem, ManagerRow, RenewalItem, RenewalsResponse, VpnListItem, VpnUserDetail } from '../models';
+import { AdminStatsResponse, AdminVpnListItem, ManagerRow, RenewalItem, RenewalsResponse, VpnListItem, VpnUserDetail } from '../models';
 
 export interface CreateVpnBody {
   local_name: string;
@@ -204,6 +204,10 @@ export class AdminService {
 
   listManagers(): Observable<{ items: ManagerRow[] }> {
     return this.api.get('/admin/managers');
+  }
+
+  getStats(refresh = false): Observable<AdminStatsResponse> {
+    return this.api.get('/admin/stats', { refresh: refresh ? 'true' : undefined });
   }
 
   createManager(body: {

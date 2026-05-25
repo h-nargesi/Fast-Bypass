@@ -46,6 +46,15 @@ describe('App (Persian shell)', () => {
     http.expectOne((req) => req.url === '/api/v1/vpn-users').flush({ items: [] });
   }
 
+  function flushAdminDashboard(): void {
+    http.expectOne('/api/v1/admin/stats').flush({
+      manager_count: 0,
+      totals: { vpn_users: 0, connections: 0 },
+      orphan: { vpn_users: 0, connections: 0 },
+      by_manager: [],
+    });
+  }
+
   it('renders Persian app title in header', async () => {
     await router.navigateByUrl('/login');
     fixture.detectChanges();
@@ -66,8 +75,7 @@ describe('App (Persian shell)', () => {
     fixture.componentInstance.auth.role.set('admin');
     await router.navigateByUrl('/login');
     fixture.detectChanges();
-    http.expectOne('/api/v1/admin/managers').flush({ items: [] });
-    http.expectOne((req) => req.url === '/api/v1/admin/vpn-users').flush({ items: [] });
+    flushAdminDashboard();
     fixture.detectChanges();
 
     expect(router.url).toBe('/admin');
@@ -95,8 +103,7 @@ describe('App (Persian shell)', () => {
     fixture.componentInstance.auth.role.set('admin');
     await router.navigateByUrl('/admin');
     fixture.detectChanges();
-    http.expectOne('/api/v1/admin/managers').flush({ items: [] });
-    http.expectOne((req) => req.url === '/api/v1/admin/vpn-users').flush({ items: [] });
+    flushAdminDashboard();
     fixture.detectChanges();
     const nav = fixture.nativeElement.querySelector('nav');
     expect(nav?.textContent).toMatch(/مدیران/);
@@ -116,8 +123,7 @@ describe('App (Persian shell)', () => {
 
     await router.navigateByUrl('/admin');
     fixture.detectChanges();
-    http.expectOne('/api/v1/admin/managers').flush({ items: [] });
-    http.expectOne((req) => req.url === '/api/v1/admin/vpn-users').flush({ items: [] });
+    flushAdminDashboard();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.showNav()).toBe(true);
@@ -170,8 +176,12 @@ describe('App (Persian shell)', () => {
     fixture.detectChanges();
 
     expect(router.url).toBe('/admin');
-    http.expectOne('/api/v1/admin/managers').flush({ items: [] });
-    http.expectOne((r) => r.url === '/api/v1/admin/vpn-users').flush({ items: [] });
+    http.expectOne('/api/v1/admin/stats').flush({
+      manager_count: 0,
+      totals: { vpn_users: 0, connections: 0 },
+      orphan: { vpn_users: 0, connections: 0 },
+      by_manager: [],
+    });
     fixture.detectChanges();
 
     const nav = fixture.nativeElement.querySelector('nav');

@@ -207,6 +207,58 @@ func TestAdmin_vpnUsers_orphanFilter_and_ownerFields(t *testing.T) {
 	}
 }
 
+func TestAdmin_stats_totalsAndByManager(t *testing.T) {
+	application, _, fake := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+	testutil.SeedManager(t, h, adminToken, "bob", "bob", 10)
+
+	prof := "profile-open-2M-30d"
+	_ = fake.AddUser("ali-a", "Secret123", "panel:ali", 2, false)
+	_ = fake.AddUserProfile("ali-a", prof)
+	_ = fake.AddUser("ali-off", "Secret123", "panel:ali", 3, true)
+	_ = fake.AddUserProfile("ali-off", prof)
+	_ = fake.AddUser("bob-x", "Secret123", "panel:bob", 4, false)
+	_ = fake.AddUserProfile("bob-x", prof)
+	_ = fake.AddUser("orphan1", "Secret123", "", 1, false)
+	_ = fake.AddUserProfile("orphan1", prof)
+
+	w := testutil.DoJSON(t, h, http.MethodGet, "/api/v1/admin/stats", nil, adminToken)
+	var resp map[string]any
+	testutil.DecodeJSON(t, w, &resp)
+	if int(resp["manager_count"].(float64)) != 2 {
+		t.Fatalf("manager_count: %+v", resp["manager_count"])
+	}
+	totals := resp["totals"].(map[string]any)
+	if int(totals["vpn_users"].(float64)) != 3 || int(totals["connections"].(float64)) != 7 {
+		t.Fatalf("totals: %+v", totals)
+	}
+	orphan := resp["orphan"].(map[string]any)
+	if int(orphan["vpn_users"].(float64)) != 1 || int(orphan["connections"].(float64)) != 1 {
+		t.Fatalf("orphan: %+v", orphan)
+	}
+	var aliConn, bobConn int
+	for _, it := range resp["by_manager"].([]any) {
+		row := it.(map[string]any)
+		switch int(row["connections"].(float64)) {
+		case 2:
+			if row["display_name"] != "ali" {
+				t.Fatalf("ali row: %+v", row)
+			}
+			aliConn = 2
+		case 4:
+			if row["display_name"] != "bob" {
+				t.Fatalf("bob row: %+v", row)
+			}
+			bobConn = 4
+		}
+	}
+	if aliConn != 2 || bobConn != 4 {
+		t.Fatalf("by_manager connections: ali=%d bob=%d", aliConn, bobConn)
+	}
+}
+
 func TestAdmin_vpnUser_createPatchDelete(t *testing.T) {
 	application, _, fake := testutil.NewTestApp(t)
 	h := server.New(application)

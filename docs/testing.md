@@ -58,6 +58,7 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | کش + `?refresh=true` | ✓ mikrotik | ✓ acceptance |
 | حذف کاربر / حذف رزرو | ✓ fake | ✓ acceptance |
 | ادمین: ایجاد / PATCH / DELETE VPN | ✓ fake | ✓ acceptance |
+| `GET /admin/stats` — جمع اتصال و تفکیک مدیر | ✓ quota | ✓ acceptance |
 | `connection_bundle` / `.ovpn` | — | ✓ acceptance |
 | refresh JWT | ✓ auth | ✓ acceptance |
 | تغییر رمز `/me/password` | ✓ password | ✓ acceptance |
@@ -98,6 +99,7 @@ npm run test:ci   # یک‌بار، برای CI
 | `src/app/shared/components/connection-bundle/*.spec.ts` | کارت اتصال مشتری (تب‌ها، پیش‌نمایش) |
 | `src/app/features/auth/login/*.spec.ts` | فرم ورود و POST `/auth/login` |
 | `src/app/features/manager/dashboard/*.spec.ts` | داشبورد مدیر + API |
+| `src/app/features/admin/dashboard/*.spec.ts` | داشبورد ادمین — `GET /admin/stats` |
 | `src/app/features/manager/users/user-detail.component.spec.ts` | جزئیات کاربر — ستون اتصال در تاریخچه تمدید |
 | `src/app/app.spec.ts` | پوسته، nav مدیر/ادمین، مخفی در login |
 | `src/app/core/layout/document-locale.spec.ts` | قرارداد `lang`/`dir` سند |
@@ -113,6 +115,7 @@ npm run test:ci   # یک‌بار، برای CI
 | فرمت مبلغ ریال | ✓ |
 | ورود / JWT / گارد مسیر | ✓ |
 | داشبورد مدیر (quota + لیست) | ✓ |
+| داشبورد ادمین (آمار اتصال + تفکیک مدیر) | ✓ |
 | کارت اتصال مشتری | ✓ |
 | سرویس‌های API (VPN، renewals، managers) | ✓ |
 | تاریخچه تمدید در `/users/:id` — ستون `shared_users` | ✓ |

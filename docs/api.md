@@ -201,6 +201,7 @@ Query مجاز: `from`, `to`, `q`, `page`, `page_size`, `refresh` (همان مع
 
 | Method | Path                   | نقش                                      |
 | ------ | ---------------------- | ---------------------------------------- |
+| GET    | `/admin/stats`         | آمار VPN — کاربران فعال و اتصال، orphan، به تفکیک مدیر (`?refresh=true`) |
 | GET    | `/admin/managers`      | admin                                    |
 | POST   | `/admin/managers`      | admin                                    |
 | PATCH  | `/admin/managers/:id`  | admin                                    |
@@ -217,6 +218,38 @@ Query مجاز: `from`, `to`, `q`, `page`, `page_size`, `refresh` (همان مع
 | POST   | `/admin/renewals/settle-through` | تسویه دسته‌ای در **همان محدوده فیلتر** — فقط admin |
 
 **دسترسی:** نقش `admin` روی همه ردیف‌ها — **بدون** `NOT_OWNER`. عملیات write که `shared_users` را افزایش می‌دهد همچنان سقف **مدیر مالک** (`resolve_owner`) را چک می‌کند؛ برای orphan تا زمان تخصیص مالک، assign با افزایش مصرف ممکن است `403` یا نیاز به تخصیص مالک اول باشد (طبق [business-rules.md](business-rules.md)).
+
+### GET `/admin/stats`
+
+آمار یک‌جا برای داشبورد ادمین. منبع: لیست کاربران MikroTik + `resolve_owner` + پروفایل‌های فعال (همان قانون `used_quota`).
+
+Query: `refresh=true` (اختیاری) — نادیده گرفتن کش روتر.
+
+```json
+{
+  "manager_count": 2,
+  "totals": { "vpn_users": 12, "connections": 18 },
+  "orphan": { "vpn_users": 1, "connections": 2 },
+  "by_manager": [
+    {
+      "manager_id": 1,
+      "display_name": "علی احمدی",
+      "username": "ali",
+      "quota": 10,
+      "vpn_users": 5,
+      "connections": 8
+    }
+  ]
+}
+```
+
+| فیلد | توضیح |
+|------|--------|
+| `totals.vpn_users` | تعداد کاربران **فعال** — غیرغیرفعال در روتر + پروفایل فعال |
+| `totals.connections` | جمع `shared_users` برای همان کاربران فعال |
+| `orphan.*` | کاربرانی که `resolve_owner` = بدون مدیر (فقط فعال‌ها) |
+| `by_manager[].connections` | مصرف فعال همان مدیر (برابر `used_quota` در `GET /admin/managers`) |
+| `by_manager[].vpn_users` | تعداد کاربران فعال متعلق به مدیر |
 
 ### GET `/admin/vpn-users` — query
 
@@ -480,7 +513,7 @@ Query:
 | `VpnUserService` | CRUD + assign + `getConnection`, `downloadOvpn` |
 | `RenewalsService`| `GET /renewals` (manager) |
 | `QuotaService`   | `/me/quota` (اختیاری اگر در `/me` ادغام شود) |
-| `AdminService`   | managers, admin vpn-users, `GET/POST /admin/renewals` |
+| `AdminService`   | managers, `GET /admin/stats`, admin vpn-users, `GET/POST /admin/renewals` |
 
 
 Interceptor: افزودن Bearer؛ در 401 تلاش refresh یک‌بار.

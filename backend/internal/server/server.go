@@ -72,6 +72,7 @@ func New(a *app.App) http.Handler {
 
 			pr.Route("/admin", func(ar chi.Router) {
 				ar.Use(auth.RequireAdmin)
+				ar.Get("/stats", a.HandleAdminStats)
 				ar.Get("/managers", a.HandleListManagers)
 				ar.Post("/managers", a.HandleCreateManager)
 				ar.Patch("/managers/{id}", a.HandlePatchManager)

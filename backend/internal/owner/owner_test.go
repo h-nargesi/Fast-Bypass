@@ -74,7 +74,7 @@ func TestOwnerMismatch(t *testing.T) {
 		t.Fatal("expected no mismatch when aligned")
 	}
 	if reg.OwnerMismatch("ali-reza01", "notes|panel=ali", 1) {
-		t.Fatal("expected no mismatch when aligned with panel= token")
+		t.Fatal("expected no mismatch when ali-reza01 with panel=ali")
 	}
 	if reg.OwnerMismatch("guest01", "", 0) {
 		t.Fatal("orphan should not mismatch")

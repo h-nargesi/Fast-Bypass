@@ -13,6 +13,7 @@ import (
 	"fast-bypass/internal/mikrotik"
 	"fast-bypass/internal/owner"
 	"fast-bypass/internal/password"
+	"fast-bypass/internal/quota"
 	"fast-bypass/internal/store"
 )
 
@@ -39,6 +40,48 @@ func (a *App) HandleListManagers(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (a *App) HandleAdminStats(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	reg, err := a.Registry(ctx)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
+	users, err := a.listUsers(ctx, r.URL.Query().Get("refresh") == "true")
+	if err != nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
+		return
+	}
+	total, orphan, byOwner, err := quota.AggregateByOwner(reg, users, a.MT.ListUserProfiles, a.Now())
+	if err != nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
+		return
+	}
+	managers, err := a.Store.ListManagers(ctx)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
+	var byManager []map[string]any
+	for _, m := range managers {
+		s := byOwner[m.ID]
+		byManager = append(byManager, map[string]any{
+			"manager_id": m.ID, "display_name": m.DisplayName, "username": m.Username,
+			"quota": m.Quota, "vpn_users": s.VPNUsers, "connections": s.Connections,
+		})
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"manager_count": len(managers),
+		"totals": map[string]any{
+			"vpn_users": total.VPNUsers, "connections": total.Connections,
+		},
+		"orphan": map[string]any{
+			"vpn_users": orphan.VPNUsers, "connections": orphan.Connections,
+		},
+		"by_manager": byManager,
+	})
 }
 
 func (a *App) HandleCreateManager(w http.ResponseWriter, r *http.Request) {
