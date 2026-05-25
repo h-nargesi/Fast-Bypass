@@ -1,6 +1,6 @@
 /** پیام‌های ثابت UI — فارسی */
 export const UI_MESSAGES = {
-  appTitle: 'پنل مدیریت کاربران',
+  appTitle: 'پنل سبلان',
   login: 'ورود',
   logout: 'خروج',
   save: 'ذخیره',
