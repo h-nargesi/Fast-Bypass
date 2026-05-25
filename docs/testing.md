@@ -49,6 +49,7 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | `disabled` کاربر VPN در روتر | ✓ mikrotik + quota | ✓ vpn_meta + vpn_list_disabled |
 | لیست کاربران — فیلد `disabled` / `active_only` | — | ✓ vpn_list_disabled |
 | UI لیست — ستون فعال و `row-disabled` | — | ✓ user-list + admin-user-list spec |
+| لیست ادمین — فیلتر پیش‌فرض «همه» (بدون query) | — | ✓ admin-user-list spec |
 | `owner_mismatch` | ✓ owner | ✓ acceptance |
 | `NOT_OWNER` | — | ✓ acceptance |
 | `PATCH /me` محدود | — | ✓ acceptance |
@@ -99,7 +100,8 @@ npm run test:ci   # یک‌بار، برای CI
 | `src/app/shared/components/connection-bundle/*.spec.ts` | کارت اتصال مشتری (تب‌ها، پیش‌نمایش) |
 | `src/app/features/auth/login/*.spec.ts` | فرم ورود و POST `/auth/login` |
 | `src/app/features/manager/dashboard/*.spec.ts` | داشبورد مدیر + API |
-| `src/app/features/admin/dashboard/*.spec.ts` | داشبورد ادمین — `GET /admin/stats` |
+| `src/app/features/admin/dashboard/*.spec.ts` | داشبورد ادمین — `GET /admin/stats`، لینک «همه کاربران» بدون فیلتر orphan |
+| `src/app/features/admin/users/admin-user-list.component.spec.ts` | لیست ادمین — فیلتر پیش‌فرض «همه»، orphan، manager_id |
 | `src/app/features/manager/users/user-detail.component.spec.ts` | جزئیات کاربر — ستون اتصال در تاریخچه تمدید |
 | `src/app/app.spec.ts` | پوسته، nav مدیر/ادمین، مخفی در login |
 | `src/app/core/layout/document-locale.spec.ts` | قرارداد `lang`/`dir` سند |

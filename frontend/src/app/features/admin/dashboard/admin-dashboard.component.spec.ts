@@ -64,4 +64,23 @@ describe('AdminDashboardComponent', () => {
     expect(text).toContain('علی');
     expect(text).toContain('5 / 10');
   });
+
+  it('links «همه کاربران» to /admin/users without orphan filter', () => {
+    http.expectOne('/api/v1/admin/stats').flush({
+      manager_count: 0,
+      totals: { vpn_users: 0, connections: 0 },
+      orphan: { vpn_users: 0, connections: 0 },
+      by_manager: [],
+    });
+    fixture.detectChanges();
+
+    const href = (label: string) => {
+      const anchors = fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>;
+      return Array.from(anchors).find((a) => a.textContent?.trim() === label)?.getAttribute('href');
+    };
+
+    expect(href('همه کاربران')).toBe('/admin/users');
+    expect(href('همه کاربران VPN')).toBe('/admin/users');
+    expect(href('مشاهده')).toBe('/admin/users?orphan=true');
+  });
 });

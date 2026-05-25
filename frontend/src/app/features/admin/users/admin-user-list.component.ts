@@ -121,7 +121,7 @@ export class AdminUserListComponent implements OnInit {
   readonly items = signal<AdminVpnListItem[]>([]);
   readonly managers = signal<ManagerRow[]>([]);
   readonly error = signal('');
-  filterMode = 'orphan';
+  filterMode = 'all';
 
   ngOnInit(): void {
     this.admin.listManagers().subscribe((r) => this.managers.set(r.items));
@@ -130,6 +130,8 @@ export class AdminUserListComponent implements OnInit {
         this.filterMode = 'orphan';
       } else if (q['manager_id']) {
         this.filterMode = 'm:' + q['manager_id'];
+      } else {
+        this.filterMode = 'all';
       }
       this.load(false);
     });
