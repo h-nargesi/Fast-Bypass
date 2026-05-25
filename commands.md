@@ -1,4 +1,38 @@
-# Publish
+# Commands
+
+## Run
+
+**Frontend:**
+
+```bash
+cd ./frontend/
+npm start
+```
+
+**Backend Linux:**
+
+```bash
+cd ./backend/
+make run
+```
+
+## Test
+
+**Frontend:**
+
+```bash
+cd ./frontend/
+npm run test:ci
+```
+
+**Backend Linux:**
+
+```bash
+cd ./backend/
+make test
+```
+
+## Publish
 
 **Frontend:**
 
