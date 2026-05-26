@@ -38,6 +38,7 @@ make test
 
 ```bash
 cd ./frontend/
+rm -r ./dist/frontend/browser
 npm run build
 scp -r ./dist/frontend/browser/* ubuntu@${SERVER}:/opt/fast-bypass/www/
 ```
@@ -63,3 +64,4 @@ $env:CGO_ENABLED = "0"
 go build -o server .\cmd\server
 scp .\server ubuntu@%SERVER%:/opt/fast-bypass/bin/
 ```
+
