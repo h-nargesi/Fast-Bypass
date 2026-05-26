@@ -97,7 +97,12 @@ func (a *App) HandleConnectionBundle(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, a.connectionBundle(u))
+	bundle, err := a.connectionBundleFor(r.Context(), meta, u)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, bundle)
 }
 
 func (a *App) HandleDownloadOvpn(w http.ResponseWriter, r *http.Request) {
@@ -116,18 +121,7 @@ func (a *App) HandleDownloadOvpn(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
 		return
 	}
-	if u.Password == "" {
-		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "رمز در دسترس نیست")
-		return
-	}
-	body, err := a.renderOvpn(u.Name, u.Password)
-	if err != nil {
-		httpx.WriteError(w, http.StatusServiceUnavailable, "TEMPLATE_MISSING", "قالب ovpn پیکربندی نشده")
-		return
-	}
-	w.Header().Set("Content-Type", "application/x-openvpn-profile")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+u.Name+`.ovpn"`)
-	_, _ = w.Write(body)
+	a.writeOvpnDownload(w, r, meta)
 }
 
 func (a *App) HandleRemoveProfile(w http.ResponseWriter, r *http.Request) {

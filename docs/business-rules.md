@@ -454,24 +454,40 @@ orphan ⟺
 
 ## bundle اتصال (تحویل به مشتری)
 
-مدیر در `/users/:id` کارت «اطلاعات اتصال برای مشتری» را می‌بیند ([user-flows.md](user-flows.md)).
+مدیر در `/users/:id` کارت «اطلاعات اتصال برای مشتری» را می‌بیند ([user-flows.md](user-flows.md)). **UI مدیر برای گواهی تغییر نمی‌کند** — سرور بر اساس اولویت زیر مقدار `openvpn_key_password` و نوع فایل `.ovpn` را برمی‌گرداند ([certificates.md](certificates.md)).
 
 | فیلد | منبع | ثابت / per-user |
 |------|------|-----------------|
 | Username | `mikrotik_name` | per-user |
 | Password | MikroTik | per-user |
-| OpenVPN Private Key Password | `OPENVPN_KEY_PASSWORD` | ثابت سرویس (env) |
+| OpenVPN Private Key Password | اولویت: `vpn_user_meta.cert_key_pass` → `managers.cert_key_pass` → `OPENVPN_KEY_PASSWORD` | per-user / مدیر / env |
 | L2TP IPsec Secret | `L2TP_IPSEC_SECRET` | ثابت سرویس |
 | L2TP Server | `L2TP_SERVER` | ثابت سرویس |
 | OpenVpn Download | `OPENVPN_DOWNLOAD_URL` | ثابت سرویس (پیش‌فرض: `http://dl.nimbaha.info/dl/`) |
-| فایل `.ovpn` | `GET /vpn-users/:id/ovpn` | تولید از قالب + username/password |
+| فایل `.ovpn` | `GET /vpn-users/:id/ovpn` | اگر گواهی (کاربر یا مدیر): `config-{mikrotik_name}.ovpn` از روتر؛ وگرنه قالب legacy |
 
 | قانون | جزئیات |
 |--------|--------|
 | دسترسی | فقط مدیر مالک (`NOT_OWNER` در غیر این صورت)؛ ادمین از `/admin/vpn-users/:id` |
+| اولویت OpenVPN | کاربر `cert_title` → مدیر `cert_title` → env؛ **بدون** مخلوط title یک طرف و pass طرف دیگر |
+| ساخت گواهی | فقط ادمین، **هنگام ایجاد** کاربر/مدیر؛ دانلود فقط خواندن فایل از روتر |
+| `cert_title` در DB | **بدون UNIQUE** — چند کاربر یک گواهی مشترک |
 | قالب کپی | خطوط `Username:` / `Password:` / … مطابق [user-flows.md](user-flows.md) |
 | UI | رمزها پیش‌فرض ماسک؛ «کپی همه» و پیش‌نمایش monospace با `direction: ltr` |
 | خارج از فاز ۱ | ارسال خودکار SMS/ایمیل؛ QR |
+
+## گواهی OpenVPN (ادمین)
+
+جزئیات کامل: [certificates.md](certificates.md).
+
+| قانون | جزئیات |
+|--------|--------|
+| دسترسی UI | فیلد `cert_title` فقط در فرم‌های **ادمین** (ایجاد/ویرایش کاربر VPN در `/admin/users/:id`، ایجاد/ویرایش مدیر در `/admin/managers`) |
+| مدیر | فیلد گواهی ندارد؛ اگر مدیر `cert_title` دارد، هنگام ایجاد کاربر توسط مدیر فقط `config-{mikrotik_name}.ovpn` ساخته می‌شود (بدون sign مجدد) |
+| پسورد | همیشه در پنل تولید و به اسکریپت `PASSPHRASE` داده می‌شود؛ parse خروجی `:put` نمی‌شود |
+| فایل `.pass` روتر | پنل **هرگز** دانلود/خواندن نمی‌کند |
+| فایل تحویل | روی روتر: `config-{mikrotik_name}.ovpn` + `setenv FRIENDLY_NAME "Sabalan {mikrotik_name}"` |
+| اسکریپت | `generate-certificate` — idempotent اگر `cl-{TITLE}` وجود داشته باشد |
 
 ---
 
@@ -496,6 +512,7 @@ orphan ⟺
 | `NAME_TAKEN` | نام کاربر در روتر وجود دارد |
 | `NOT_OWNER` | کاربر متعلق به این مدیر نیست |
 | `MIKROTIK_UNAVAILABLE` | ارتباط با روتر برقرار نشد |
+| `OVPN_MISSING` | فایل `config-{mikrotik_name}.ovpn` روی روتر یا قالب legacy در دسترس نیست |
 | `PROFILE_NOT_FOUND` | پروفایل در روتر تعریف نشده |
 | `SLUG_IN_USE` | پیشوند مدیر تکراری است |
 | `SLUG_HAS_USERS` | تغییر slug به‌دلیل وجود کاربر ممکن نیست |

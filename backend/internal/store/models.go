@@ -17,6 +17,8 @@ type Manager struct {
 	Slug         string
 	Quota        int
 	IsActive     bool
+	CertTitle    sql.NullString
+	CertKeyPass  sql.NullString
 	CreatedAt    string
 	UpdatedAt    string
 }
@@ -32,6 +34,8 @@ type VPNUserMeta struct {
 	ManagerID    sql.NullInt64
 	ContactInfo  sql.NullString
 	Notes        sql.NullString
+	CertTitle    sql.NullString
+	CertKeyPass  sql.NullString
 	CreatedAt    string
 	UpdatedAt    string
 }

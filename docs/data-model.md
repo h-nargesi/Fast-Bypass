@@ -16,6 +16,8 @@ erDiagram
     text username
     text slug UK
     int quota
+    text cert_title
+    text cert_key_pass
   }
   vpn_user_meta {
     int id PK
@@ -23,6 +25,8 @@ erDiagram
     int manager_id FK
     text contact_info
     text notes
+    text cert_title
+    text cert_key_pass
   }
   profile_activations {
     int id PK
@@ -46,6 +50,8 @@ DDL کامل: [db/schema.sql](../db/schema.sql).
 | `quota` | INT | سقف **اسلات اتصال همزمان** (جمع `shared-users` کاربران با پروفایل فعال) |
 | `is_active` | INT | `0` = غیرفعال (ورود مسدود) — ویرایش توسط ادمین |
 | `password_hash` | TEXT | bcrypt |
+| `cert_title` | TEXT | عنوان گواهی OpenVPN در روتر (آرگومان `TITLE` اسکریپت) — اختیاری؛ **بدون UNIQUE** (چند مدیر/کاربر می‌توانند یک عنوان مشترک داشته باشند) |
+| `cert_key_pass` | TEXT | پسورد export کلید خصوصی؛ پنل تولید می‌کند — جزئیات [certificates.md](certificates.md) |
 
 ## جدول `vpn_user_meta`
 
@@ -57,6 +63,12 @@ DDL کامل: [db/schema.sql](../db/schema.sql).
 | `manager_id` | FK به مدیر؛ از **`resolve_owner(mikrotik_name, comment)`** در روتر — اگر orphan باشد `NULL` یا ناسازگار با روتر (هشدار) |
 | `contact_info` | اطلاعات تماس (تلگرام، ایمیل، …) — اختیاری |
 | `notes` | یادداشت آزاد پنل — **جایگزین `comment` روتر برای مدیر**؛ در MikroTik ذخیره نمی‌شود |
+| `cert_title` | TEXT | اختیاری؛ اشتراک‌پذیر بین کاربران — **بدون UNIQUE** |
+| `cert_key_pass` | TEXT | پسورد گواهی این کاربر (وقتی ادمین هنگام ایجاد `cert_title` داده) |
+
+## گواهی OpenVPN
+
+نگاشت کامل، اولویت پسورد/فایل، و نام `config-{mikrotik_name}.ovpn` روی روتر: [certificates.md](certificates.md).
 
 ## جدول `profile_activations`
 

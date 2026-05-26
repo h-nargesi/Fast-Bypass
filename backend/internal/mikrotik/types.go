@@ -29,6 +29,10 @@ type Client interface {
 	ListUserProfiles(user string) ([]UserProfile, error)
 	AddUserProfile(user, profile string) error
 	RemoveUserProfile(id string) error
+	GenerateCertificate(scriptName, title, passphrase string) error
+	ReadFileContents(name string) ([]byte, error)
+	WriteFileContents(name string, body []byte) error
+	FileExists(name string) (bool, error)
 	InvalidateCache()
 }
 
@@ -137,6 +141,22 @@ func (c *CachedClient) RemoveUserProfile(id string) error {
 	}
 	c.InvalidateCache()
 	return nil
+}
+
+func (c *CachedClient) GenerateCertificate(scriptName, title, passphrase string) error {
+	return c.inner.GenerateCertificate(scriptName, title, passphrase)
+}
+
+func (c *CachedClient) ReadFileContents(name string) ([]byte, error) {
+	return c.inner.ReadFileContents(name)
+}
+
+func (c *CachedClient) WriteFileContents(name string, body []byte) error {
+	return c.inner.WriteFileContents(name, body)
+}
+
+func (c *CachedClient) FileExists(name string) (bool, error) {
+	return c.inner.FileExists(name)
 }
 
 func (c *CachedClient) InvalidateCache() {

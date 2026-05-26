@@ -146,6 +146,29 @@ state contains "active" OR (end-time parsed > now)
 # در production گروه custom با policy محدود به user-manager
 ```
 
+## گواهی OpenVPN و فایل‌ها
+
+جزئیات کسب‌وکار: [certificates.md](certificates.md).
+
+| env | معنی |
+|-----|------|
+| `MIKROTIK_CERT_SCRIPT` | نام فایل `.rsc` روی روتر (پیش‌فرض `generate-certificate`) — import موقت، اجرا، حذف فایل import |
+
+**اجرای اسکریپت (پنل):**
+
+1. نوشتن `cert_key_pass` تولیدشده در پنل به متغیرهای اسکریپت (`TITLE`, `PASSPHRASE`).
+2. `/import file-name=…` سپس `/system script run …` (یا معادل در پیاده‌سازی `GenerateCertificate`).
+3. اگر `cl-{TITLE}` از قبل وجود داشته باشد، اسکریپت گواهی را دوباره نمی‌سازد.
+
+**فایل‌های روتر:**
+
+| فایل | نقش |
+|------|------|
+| `config-{mikrotik_name}.ovpn` | تحویل هر کاربر — نوشته در create/patch ادمین؛ دانلود با `ReadFileContents` |
+| `config-{cert_title}.ovpn` | خروجی/الگوی اسکریپت (تا هم‌راستاسازی کامل با per-user name) |
+
+API فایل: `WriteFileContents`, `ReadFileContents` در `internal/mikrotik/files.go`.
+
 ## تست بدون روتر
 
 لایه `internal/mikrotik` interface `Client` + پیاده‌سازی `FakeClient` برای تست واحد و dev (`MIKROTIK_FAKE=true` در env اختیاری).

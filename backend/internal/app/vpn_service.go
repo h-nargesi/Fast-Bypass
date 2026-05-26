@@ -58,20 +58,6 @@ func (a *App) enrichOwner(ctx context.Context, reg owner.Registry, name, comment
 	return &mid, &dn, &un, &sl, reg.OwnerMismatch(name, comment, id)
 }
 
-func (a *App) connectionBundle(u *mikrotik.User) map[string]any {
-	pw := any(nil)
-	if u != nil && u.Password != "" {
-		pw = u.Password
-	}
-	return map[string]any{
-		"username":               u.Name,
-		"password":               pw,
-		"openvpn_key_password":   a.Cfg.OpenVPNKeyPassword,
-		"l2tp_ipsec_secret":      a.Cfg.L2TPIPsecSecret,
-		"l2tp_server":            a.Cfg.L2TPServer,
-		"openvpn_download_url":   a.Cfg.OpenVPNDownloadURL,
-	}
-}
 
 func (a *App) buildVPNDetail(ctx context.Context, reg owner.Registry, meta *store.VPNUserMeta, includeComment bool) (map[string]any, error) {
 	u, err := a.MT.GetUser(meta.MikrotikName)
@@ -91,13 +77,18 @@ func (a *App) buildVPNDetail(ctx context.Context, reg owner.Registry, meta *stor
 		"contact_info": nullStrVal(meta.ContactInfo),
 		"notes": nullStrVal(meta.Notes),
 		"profiles": profileDTOs(profs), "activations": a.activationDTOsWithLiveShared(ctx, acts, u.Name),
-		"connection_bundle": a.connectionBundle(u),
 		"manager_id": mid, "manager_display_name": dn, "manager_username": un, "manager_slug": sl,
 		"owner_mismatch": mismatch,
 	}
 	if includeComment {
 		out["mikrotik_comment"] = u.Comment
+		out["cert_title"] = nullStrVal(meta.CertTitle)
 	}
+	bundle, err := a.connectionBundleFor(ctx, meta, u)
+	if err != nil {
+		return nil, err
+	}
+	out["connection_bundle"] = bundle
 	return out, nil
 }
 
@@ -193,9 +184,16 @@ func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createV
 		return nil, err
 	}
 
+	certTitle, certKeyPass, err := a.setupVPNCertificates(ctx, name, mgr, req.CertTitle)
+	if err != nil {
+		_ = a.MT.RemoveUser(name)
+		return nil, err
+	}
+
 	mid := mgr.ID
 	meta := &store.VPNUserMeta{
 		MikrotikName: name, ManagerID: sql.NullInt64{Int64: mid, Valid: true},
+		CertTitle:    certTitle, CertKeyPass: certKeyPass,
 	}
 	if req.ContactInfo != nil {
 		meta.ContactInfo = sql.NullString{String: *req.ContactInfo, Valid: true}
@@ -244,7 +242,15 @@ func (a *App) createOrphanVPNUser(ctx context.Context, req createVPNReq) (map[st
 		}
 		return nil, err
 	}
-	meta := &store.VPNUserMeta{MikrotikName: name}
+	certTitle, certKeyPass, err := a.setupVPNCertificates(ctx, name, nil, req.CertTitle)
+	if err != nil {
+		_ = a.MT.RemoveUser(name)
+		return nil, err
+	}
+	meta := &store.VPNUserMeta{
+		MikrotikName: name,
+		CertTitle:    certTitle, CertKeyPass: certKeyPass,
+	}
 	if req.ContactInfo != nil {
 		meta.ContactInfo = sql.NullString{String: *req.ContactInfo, Valid: true}
 	}
@@ -299,7 +305,22 @@ type patchVPNReq struct {
 
 type adminPatchVPNReq struct {
 	patchVPNReq
-	ManagerID *int64 `json:"manager_id"`
+	ManagerID              *int64 `json:"manager_id"`
+	CertTitle *string `json:"cert_title"`
+}
+
+func (a *App) adminPatchVPNUser(ctx context.Context, reg owner.Registry, meta *store.VPNUserMeta, req adminPatchVPNReq) (map[string]any, error) {
+	if req.CertTitle != nil {
+		if err := a.applyVPNUserCertTitleChange(ctx, meta, *req.CertTitle); err != nil {
+			return nil, err
+		}
+		var err error
+		meta, err = a.Store.FindVPNMetaByID(ctx, meta.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return a.patchVPNUser(ctx, reg, meta, req.patchVPNReq, req.ManagerID, true)
 }
 
 func (a *App) patchVPNUser(ctx context.Context, reg owner.Registry, meta *store.VPNUserMeta, req patchVPNReq, syncManagerID *int64, includeComment bool) (map[string]any, error) {
@@ -407,7 +428,13 @@ func (a *App) writeVPNPatchError(w http.ResponseWriter, err error) {
 		httpx.WriteError(w, http.StatusForbidden, "ORPHAN_NO_OWNER", "کاربر بدون مدیر — ابتدا مالک را در روتر مشخص کنید")
 	case errors.Is(err, errOwnerDBMismatch):
 		httpx.WriteError(w, http.StatusConflict, "OWNER_MISMATCH", "manager_id با مالک واقعی روتر هم‌خوان نیست")
+	case errors.Is(err, errInvalidCertTitle):
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "عنوان گواهی نامعتبر است")
 	default:
+		if errors.Is(err, mikrotik.ErrNotFound) {
+			httpx.WriteError(w, http.StatusServiceUnavailable, "OVPN_MISSING", "فایل پیکربندی OpenVPN یافت نشد")
+			return
+		}
 		if err != nil && err.Error() == "invalid password" {
 			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "رمز VPN نامعتبر")
 			return
@@ -428,6 +455,7 @@ type createVPNReq struct {
 	AmountPaid    *float64 `json:"amount_paid"`
 	Currency      *string  `json:"currency"`
 	Note          *string  `json:"note"`
+	CertTitle     *string  `json:"cert_title"` // admin create only; ignored for manager POST /vpn-users
 }
 
 func (a *App) recordActivation(ctx context.Context, metaID int64, profile string, shared int, amount *float64, currency, note *string, profs []mikrotik.UserProfile) error {
@@ -464,7 +492,7 @@ func (a *App) assertManagerOwner(reg owner.Registry, c *auth.Claims, name, comme
 	return nil
 }
 
-func (a *App) renderOvpn(username, pass string) ([]byte, error) {
+func (a *App) renderOvpn(username, pass, keyPass string) ([]byte, error) {
 	b, err := a.readOvpnTemplate()
 	if err != nil {
 		return nil, err
@@ -472,6 +500,6 @@ func (a *App) renderOvpn(username, pass string) ([]byte, error) {
 	s := string(b)
 	s = strings.ReplaceAll(s, "{{username}}", username)
 	s = strings.ReplaceAll(s, "{{password}}", pass)
-	s = strings.ReplaceAll(s, "{{openvpn_key_password}}", a.Cfg.OpenVPNKeyPassword)
+	s = strings.ReplaceAll(s, "{{openvpn_key_password}}", keyPass)
 	return []byte(s), nil
 }

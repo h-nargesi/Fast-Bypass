@@ -138,19 +138,23 @@ Errors: `{ "error": { "code": "QUOTA_EXCEEDED", "message": "..." } }`
 |------|------|
 | `username` | `mikrotik_name` |
 | `password` | MikroTik User Manager — در صورت عدم دسترسی در کش، `null` و UI پیام بروزرسانی نشان می‌دهد |
-| `openvpn_key_password` | env `OPENVPN_KEY_PASSWORD` |
+| `openvpn_key_password` | اولویت: `vpn_user_meta.cert_key_pass` → `managers.cert_key_pass` (مالک) → env `OPENVPN_KEY_PASSWORD` — [certificates.md](certificates.md) |
 | `l2tp_ipsec_secret` | env `L2TP_IPSEC_SECRET` |
 | `l2tp_server` | env `L2TP_SERVER` |
 | `openvpn_download_url` | env `OPENVPN_DOWNLOAD_URL` |
 
-**امنیت:** این endpointها فقط برای نقش `manager` مالک کاربر؛ ادمین از مسیر `/admin/vpn-users/:id` می‌تواند همان bundle را ببیند. رمزها در لاگ API نوشته نمی‌شوند.
+**امنیت:** این endpointها فقط برای نقش `manager` مالک کاربر؛ ادمین از مسیر `/admin/vpn-users/:id` می‌تواند همان bundle را ببیند. رمزها و `cert_key_pass` در لاگ API نوشته نمی‌شوند.
 
 ### GET `/vpn-users/:id/ovpn`
 
 - پاسخ: `Content-Type: application/x-openvpn-profile` (یا `text/plain`)
 - `Content-Disposition: attachment; filename="{mikrotik_name}.ovpn"`
-- بدنه: قالب از env/فایل (`OPENVPN_TEMPLATE_PATH`) با جایگزینی حداقل `username` و `password` (و در صورت نیاز `openvpn_key_password`)
-- خطا: `503` اگر قالب پیکربندی نشده؛ `404` اگر کاربر وجود ندارد
+- بدنه (بدون اجرای اسکریپت در زمان دانلود):
+  - اگر کاربر یا مدیر مالک `cert_title` دارد: محتوای `config-{mikrotik_name}.ovpn` از فایل‌سیستم روتر (ساخته‌شده در زمان ایجاد کاربر)
+  - وگرنه: قالب `OPENVPN_TEMPLATE_PATH` + `username` / `password` / `openvpn_key_password` از env
+- خطا: `503` اگر قالب legacy پیکربندی نشده و مسیر گواهی هم در دسترس نیست؛ `404` اگر کاربر وجود ندارد
+
+جزئیات گواهی: [certificates.md](certificates.md).
 
 ### GET `/vpn-users` query
 
@@ -203,10 +207,10 @@ Query مجاز: `from`, `to`, `q`, `page`, `page_size`, `refresh` (همان مع
 | ------ | ---------------------- | ---------------------------------------- |
 | GET    | `/admin/stats`         | آمار VPN — کاربران فعال و اتصال، orphan، به تفکیک مدیر (`?refresh=true`) |
 | GET    | `/admin/managers`      | admin                                    |
-| POST   | `/admin/managers`      | admin                                    |
+| POST   | `/admin/managers`      | admin — بدنه اختیاری `cert_title` (ساخت گواهی در همان درخواست) |
 | PATCH  | `/admin/managers/:id`  | admin                                    |
 | GET    | `/admin/vpn-users`     | همه — `manager_id`, `orphan=true`؛ هر ردیف شامل مالک + `mikrotik_comment` + `owner_mismatch` |
-| POST   | `/admin/vpn-users`     | ایجاد کاربر VPN — بدنه همان `POST /vpn-users` + **`manager_id` اختیاری** (بدون مدیر = orphan) |
+| POST   | `/admin/vpn-users`     | ایجاد کاربر VPN — بدنه همان `POST /vpn-users` + **`manager_id` اختیاری** + **`cert_title` اختیاری** (ساخت گواهی و `config-{mikrotik_name}.ovpn` در همان درخواست) |
 | GET    | `/admin/vpn-users/:id` | جزئیات enrich + `connection_bundle` + activations + profiles |
 | GET    | `/admin/vpn-users/:id/connection` | همان `connection_bundle` |
 | GET    | `/admin/vpn-users/:id/ovpn` | دانلود `.ovpn` — بدون `NOT_OWNER` |
@@ -330,6 +334,9 @@ Body ترکیبی:
 |------|--------|
 | `password`, `shared_users`, `contact_*`, `notes` | همان اعتبارسنجی `PATCH /vpn-users/:id` |
 | `manager_id` | فقط وقتی `resolve_owner` از قبل مالک دارد — هم‌خوان‌سازی SQLite؛ **orphan را برطرف نمی‌کند** بدون rename یا `panel={slug}` در روتر |
+| `cert_title` | اختیاری — [certificates.md](certificates.md): خالی→جدید = صدور گواهی؛ پر→عنوان دیگر = صدور گواهی جدید؛ پر→خالی = پاک meta (تأیید UI در فرانت) |
+
+پاسخ جزئیات شامل `cert_title` (بدون `cert_key_pass`). GET همان endpoint.
 
 
 ### POST `/admin/managers`
@@ -366,6 +373,9 @@ Body ترکیبی:
 | `is_active` | `false` = ورود مدیر مسدود؛ کاربران VPN در روتر بدون تغییر |
 | `slug`      | فقط اگر آن مدیر هیچ VPN user ندارد؛ بدون همپوشانی با slugهای دیگر |
 | `password`  | اختیاری — reset رمز ورود پنل (بدون `current_password`)؛ همان اعتبارسنجی پنل |
+| `cert_title` | اختیاری — اگر نسبت به مقدار فعلی **تغییر** کند: گواهی جدید روی MikroTik + به‌روز `cert_key_pass`؛ رشته خالی = پاک کردن فیلدها در DB (بدون حذف فایل روی روتر) |
+
+`GET /admin/managers` هر ردیف شامل `cert_title` (بدون `cert_key_pass`) است.
 
 ### Admin — renewals ledger
 

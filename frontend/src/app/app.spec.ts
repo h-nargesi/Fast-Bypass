@@ -9,6 +9,7 @@ import { provideRouter, Router } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from './app';
 import { routes } from './app.routes';
+import { APP_VERSION } from './core/app-version';
 import { UI_MESSAGES } from './core/i18n/messages';
 import * as storage from './core/auth/token-storage';
 import { LoginComponent } from './features/auth/login/login.component';
@@ -55,11 +56,12 @@ describe('App (Persian shell)', () => {
     });
   }
 
-  it('renders Persian app title in header', async () => {
+  it('renders Persian app title and version in header', async () => {
     await router.navigateByUrl('/login');
     fixture.detectChanges();
     const h1 = fixture.nativeElement.querySelector('h1');
-    expect(h1?.textContent).toBe(UI_MESSAGES.appTitle);
+    expect(h1?.textContent).toContain(UI_MESSAGES.appTitle);
+    expect(h1?.textContent).toContain(`v${APP_VERSION}`);
     expect(h1?.textContent).toMatch(/[\u0600-\u06FF]/);
   });
 

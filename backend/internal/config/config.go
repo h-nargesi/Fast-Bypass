@@ -26,6 +26,7 @@ type Config struct {
 	MikrotikUseTLS   bool
 	MikrotikTLSInsec bool
 	MikrotikTimeout  time.Duration
+	MikrotikCertScript string
 
 	JWTSecret      string
 	JWTAccessTTL   time.Duration
@@ -64,7 +65,8 @@ func Load() Config {
 		MikrotikUseTLS:   useTLS,
 		MikrotikPort:     envInt("MIKROTIK_PORT", defaultPort),
 		MikrotikTLSInsec: envBool("MIKROTIK_TLS_INSECURE", false),
-		MikrotikTimeout:  envDuration("MIKROTIK_TIMEOUT", 10*time.Second),
+		MikrotikTimeout:    envDuration("MIKROTIK_TIMEOUT", 10*time.Second),
+		MikrotikCertScript: env("MIKROTIK_CERT_SCRIPT", "generate-certificate"),
 
 		JWTSecret:     env("JWT_SECRET", "change-me"),
 		JWTAccessTTL:  envDuration("JWT_ACCESS_TTL", 15*time.Minute),

@@ -87,6 +87,7 @@ export interface VpnUserDetail {
   manager_slug: string | null;
   owner_mismatch: boolean;
   mikrotik_comment?: string;
+  cert_title?: string | null;
 }
 
 export interface AdminVpnListItem extends VpnListItem {
@@ -136,6 +137,7 @@ export interface ManagerRow {
   quota: number;
   used_quota: number;
   is_active: boolean;
+  cert_title?: string | null;
 }
 
 export interface AdminScopeStats {

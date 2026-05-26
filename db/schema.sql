@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS managers (
     -- Max concurrent slots: sum(shared_users) for VPN users with active profile
     quota           INTEGER NOT NULL CHECK (quota > 0),
     is_active       INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    cert_title      TEXT,  -- OpenVPN cert TITLE (shared across managers OK; see docs/certificates.md)
+    cert_key_pass   TEXT,  -- panel-generated export passphrase; not read from router .pass files
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -31,6 +33,8 @@ CREATE TABLE IF NOT EXISTS vpn_user_meta (
     manager_id      INTEGER REFERENCES managers(id) ON DELETE SET NULL,
     contact_info    TEXT,
     notes           TEXT,
+    cert_title      TEXT,  -- optional; NOT UNIQUE — multiple users may share one certificate
+    cert_key_pass   TEXT,  -- set when admin creates user with cert_title
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );

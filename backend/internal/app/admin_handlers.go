@@ -18,11 +18,12 @@ import (
 )
 
 type createManagerReq struct {
-	Username    string `json:"username"`
-	Password    string `json:"password"`
-	DisplayName string `json:"display_name"`
-	Slug        string `json:"slug"`
-	Quota       int    `json:"quota"`
+	Username    string  `json:"username"`
+	Password    string  `json:"password"`
+	DisplayName string  `json:"display_name"`
+	Slug        string  `json:"slug"`
+	Quota       int     `json:"quota"`
+	CertTitle   *string `json:"cert_title"`
 }
 
 func (a *App) HandleListManagers(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +38,7 @@ func (a *App) HandleListManagers(w http.ResponseWriter, r *http.Request) {
 		items = append(items, map[string]any{
 			"id": m.ID, "username": m.Username, "display_name": m.DisplayName,
 			"slug": m.Slug, "quota": m.Quota, "used_quota": used, "is_active": m.IsActive,
+			"cert_title": nullStrVal(m.CertTitle),
 		})
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -104,6 +106,16 @@ func (a *App) HandleCreateManager(w http.ResponseWriter, r *http.Request) {
 	if err := a.Store.CreateManager(ctx, m); err != nil {
 		httpx.WriteError(w, http.StatusConflict, "SLUG_IN_USE", "نام کاربری یا slug تکراری است")
 		return
+	}
+	if req.CertTitle != nil && strings.TrimSpace(*req.CertTitle) != "" {
+		if err := a.setupManagerCertificate(ctx, m.ID, *req.CertTitle); err != nil {
+			if errors.Is(err, errInvalidCertTitle) {
+				httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "عنوان گواهی نامعتبر است")
+				return
+			}
+			httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ساخت گواهی روی روتر ناموفق بود")
+			return
+		}
 	}
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"id": m.ID})
 }
@@ -175,6 +187,7 @@ type patchManagerReq struct {
 	Quota       *int    `json:"quota"`
 	IsActive    *bool   `json:"is_active"`
 	Password    *string `json:"password"`
+	CertTitle   *string `json:"cert_title"`
 }
 
 func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
@@ -185,6 +198,25 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	cur, err := a.Store.FindManagerByID(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "مدیر یافت نشد")
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
+	if req.CertTitle != nil {
+		if err := a.applyManagerCertTitleChange(ctx, cur, *req.CertTitle); err != nil {
+			if errors.Is(err, errInvalidCertTitle) {
+				httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "عنوان گواهی نامعتبر است")
+				return
+			}
+			httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ساخت گواهی روی روتر ناموفق بود")
+			return
+		}
+	}
 	var username *string
 	if req.Username != nil {
 		u := strings.TrimSpace(*req.Username)
@@ -243,6 +275,7 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"id": m.ID, "username": m.Username, "display_name": m.DisplayName,
 		"slug": m.Slug, "quota": m.Quota, "used_quota": used, "is_active": m.IsActive,
+		"cert_title": nullStrVal(m.CertTitle),
 	})
 }
 
@@ -282,7 +315,15 @@ func (a *App) HandleAdminCreateVPNUser(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusConflict, "NAME_TAKEN", "نام کاربر در روتر وجود دارد")
 		return
 	}
+	if errors.Is(err, errInvalidCertTitle) {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "عنوان گواهی نامعتبر است")
+		return
+	}
 	if err != nil {
+		if errors.Is(err, mikrotik.ErrUnavailable) || errors.Is(err, mikrotik.ErrNotFound) {
+			httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر یا ساخت گواهی ناموفق بود")
+			return
+		}
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", err.Error())
 		return
 	}
@@ -300,7 +341,7 @@ func (a *App) HandleAdminPatchVPNUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reg, _ := a.Registry(r.Context())
-	out, err := a.patchVPNUser(r.Context(), reg, meta, req.patchVPNReq, req.ManagerID, true)
+	out, err := a.adminPatchVPNUser(r.Context(), reg, meta, req)
 	if err != nil {
 		a.writeVPNPatchError(w, err)
 		return
@@ -357,7 +398,12 @@ func (a *App) HandleAdminConnectionBundle(w http.ResponseWriter, r *http.Request
 		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "کاربر در روتر یافت نشد")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, a.connectionBundle(u))
+	bundle, err := a.connectionBundleFor(r.Context(), meta, u)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, bundle)
 }
 
 func (a *App) HandleAdminDownloadOvpn(w http.ResponseWriter, r *http.Request) {
@@ -365,23 +411,7 @@ func (a *App) HandleAdminDownloadOvpn(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	u, err := a.MT.GetUser(meta.MikrotikName)
-	if err != nil {
-		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "کاربر در روتر یافت نشد")
-		return
-	}
-	if u.Password == "" {
-		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "رمز در دسترس نیست")
-		return
-	}
-	body, err := a.renderOvpn(u.Name, u.Password)
-	if err != nil {
-		httpx.WriteError(w, http.StatusServiceUnavailable, "TEMPLATE_MISSING", "قالب ovpn پیکربندی نشده")
-		return
-	}
-	w.Header().Set("Content-Type", "application/x-openvpn-profile")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+u.Name+`.ovpn"`)
-	_, _ = w.Write(body)
+	a.writeOvpnDownload(w, r, meta)
 }
 
 func (a *App) HandleAdminRemoveProfile(w http.ResponseWriter, r *http.Request) {
