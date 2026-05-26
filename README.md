@@ -30,6 +30,7 @@
 | [docs/architecture.md](docs/architecture.md)     | معماری، منبع حقیقت، جریان داده                |
 | [docs/data-model.md](docs/data-model.md)         | اسکیما SQLite و نگاشت به MikroTik             |
 | [docs/business-rules.md](docs/business-rules.md) | سقف، پیشوند، تمدید، قوانین با مثال            |
+| [docs/certificates.md](docs/certificates.md)     | گواهی OpenVPN، اولویت پسورد، فایل روی روتر   |
 | [docs/mikrotik-api.md](docs/mikrotik-api.md)     | اتصال RouterOS API و عملیات User Manager      |
 | [docs/api.md](docs/api.md)                       | قرارداد REST (endpointها)                     |
 | [docs/user-flows.md](docs/user-flows.md)         | سناریوها و صفحات UI                           |

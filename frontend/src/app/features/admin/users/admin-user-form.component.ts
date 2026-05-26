@@ -1,7 +1,7 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { catchError, of } from 'rxjs';
+import { catchError, finalize, of } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client.service';
 import { ManagerRow } from '../../../core/models';
 import { AdminService, AdminVpnService } from '../../../core/services/vpn-user.service';
@@ -82,6 +82,12 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
         <textarea matInput [(ngModel)]="notes" name="notes" rows="2"></textarea>
       </mat-form-field>
 
+      <mat-form-field appearance="outline">
+        <mat-label>عنوان گواهی (اختیاری)</mat-label>
+        <input matInput class="ltr-input" [(ngModel)]="certTitle" name="certTitle" placeholder="my-cert" />
+        <mat-hint>در صورت پر شدن، گواهی OpenVPN هنگام ایجاد کاربر ساخته می‌شود.</mat-hint>
+      </mat-form-field>
+
       <mat-checkbox [(ngModel)]="assignProfile" name="assign">
         انتساب پروفایل {{ defaultProfile }}
       </mat-checkbox>
@@ -94,7 +100,7 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
       }
 
       <app-form-actions
-        submitLabel="ذخیره"
+        [submitLabel]="submitLabel()"
         [submitDisabled]="saving() || !localName.trim()"
         cancelLink="/admin/users"
       />
@@ -118,6 +124,13 @@ export class AdminUserFormComponent implements OnInit {
   readonly saving = signal(false);
   readonly error = signal('');
 
+  readonly submitLabel = computed(() => {
+    if (!this.saving()) {
+      return 'ذخیره';
+    }
+    return this.certTitle.trim() ? 'در حال ذخیره و ساخت گواهی…' : 'در حال ذخیره…';
+  });
+
   managerId: number | null = null;
   localName = '';
   password = '';
@@ -125,6 +138,7 @@ export class AdminUserFormComponent implements OnInit {
   routerEnabled = true;
   contactInfo = '';
   notes = '';
+  certTitle = '';
   assignProfile = true;
   amountPaid: number | null = null;
 
@@ -163,17 +177,20 @@ export class AdminUserFormComponent implements OnInit {
     if (this.managerId != null) {
       body.manager_id = this.managerId;
     }
+    const ct = this.certTitle.trim();
+    if (ct) {
+      body.cert_title = ct;
+    }
     this.vpn
       .create(body)
       .pipe(
         catchError((e) => {
           this.error.set(ApiClient.mapError(e));
-          this.saving.set(false);
           return of(null);
         }),
+        finalize(() => this.saving.set(false)),
       )
       .subscribe((res) => {
-        this.saving.set(false);
         if (res?.id) {
           void this.router.navigate(['/admin/users', res.id]);
         }

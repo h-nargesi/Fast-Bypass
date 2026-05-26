@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
+import { APP_VERSION } from './core/app-version';
 import { UI_MESSAGES } from './core/i18n/messages';
 import { AuthService } from './core/auth/auth.service';
 import { ToastComponent } from './shared/components/toast/toast.component';
@@ -12,7 +13,10 @@ import { ToastComponent } from './shared/components/toast/toast.component';
   template: `
     <div class="shell">
       <header>
-        <h1>{{ title }}</h1>
+        <h1>
+          {{ title }}
+          <span class="app-version" title="نسخهٔ پنل">v{{ appVersion }}</span>
+        </h1>
         @if (showNav()) {
           <nav>
             @if (auth.isManager()) {
@@ -103,6 +107,7 @@ export class App {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   readonly title = UI_MESSAGES.appTitle;
+  readonly appVersion = APP_VERSION;
   readonly msg = UI_MESSAGES;
 
   private readonly currentUrl = toSignal(

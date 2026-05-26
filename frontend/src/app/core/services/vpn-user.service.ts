@@ -14,6 +14,8 @@ export interface CreateVpnBody {
   profile_name?: string;
   amount_paid?: number;
   currency?: string;
+  /** Admin only — triggers MikroTik certificate + config-{username}.ovpn */
+  cert_title?: string;
 }
 
 export interface PatchVpnBody {
@@ -22,6 +24,12 @@ export interface PatchVpnBody {
   disabled?: boolean;
   contact_info?: string;
   notes?: string;
+}
+
+/** Admin PATCH /admin/vpn-users — includes certificate fields */
+export interface AdminPatchVpnBody extends PatchVpnBody {
+  manager_id?: number;
+  cert_title?: string | null;
 }
 
 function encName(name: string): string {
@@ -123,11 +131,11 @@ export class AdminVpnService {
     return this.api.post('/admin/vpn-users', body);
   }
 
-  patch(id: number, body: PatchVpnBody & { manager_id?: number }): Observable<VpnUserDetail> {
+  patch(id: number, body: AdminPatchVpnBody): Observable<VpnUserDetail> {
     return this.api.patch(`/admin/vpn-users/${id}`, body);
   }
 
-  patchByName(name: string, body: PatchVpnBody & { manager_id?: number }): Observable<VpnUserDetail> {
+  patchByName(name: string, body: AdminPatchVpnBody): Observable<VpnUserDetail> {
     return this.api.patch(`/admin/vpn-users/by-name/${encName(name)}`, body);
   }
 
@@ -216,6 +224,7 @@ export class AdminService {
     display_name: string;
     slug: string;
     quota: number;
+    cert_title?: string;
   }): Observable<{ id: number }> {
     return this.api.post('/admin/managers', body);
   }
@@ -228,6 +237,7 @@ export class AdminService {
       quota: number;
       is_active: boolean;
       password: string;
+      cert_title: string | null;
     }>,
   ): Observable<ManagerRow> {
     return this.api.patch(`/admin/managers/${id}`, body);

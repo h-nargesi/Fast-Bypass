@@ -31,8 +31,11 @@ flowchart LR
 | حساب مدیر / ادمین پنل                    | **SQLite**   | احراز هویت پنل                                |
 | تماس، یادداشت، پرداخت                    | **SQLite**   | روتر این‌ها را نگه نمی‌دارد                   |
 | سقف (`quota`) و `slug` مدیر              | **SQLite**   | هنگام ایجاد کاربر اعمال می‌شود                |
-| bundle اتصال (L2TP/OpenVPN ثابت سرویس)   | **env**      | `L2TP_*`, `OPENVPN_*` — سرور در `connection_bundle` به مدیر می‌دهد |
-| فایل `.ovpn` مشتری                       | **قالب سرور** | `OPENVPN_TEMPLATE_PATH` + مقادیر کاربر از MikroTik |
+| `cert_title` / `cert_key_pass` کاربر و مدیر | **SQLite**   | متادیتا؛ پسورد همیشه در پنل تولید می‌شود — [certificates.md](certificates.md) |
+| گواهی و کلید (`cl-{title}`)              | **MikroTik** | اسکریپت `generate-certificate`؛ idempotent اگر وجود داشته باشد |
+| فایل `config-{mikrotik_name}.ovpn`       | **MikroTik** | ساخته در **زمان ایجاد کاربر** (ادمین + `cert_title`)؛ دانلود فقط read |
+| bundle اتصال — L2TP و fallback OpenVPN   | **env**      | `L2TP_*`, `OPENVPN_*` وقتی گواهی اختصاصی نیست |
+| فایل `.ovpn` (fallback)                  | **قالب سرور** | `OPENVPN_TEMPLATE_PATH` + username/password از MikroTik |
 
 
 اگر MikroTik موفق و SQLite ناموفق باشد (یا برعکس)، API باید **تراکنش جبرانی** داشته باشد: در صورت خطای DB بعد از موفقیت روتر، تلاش برای حذف/برگرداندن تغییر روتر و برگرداندن خطا به کلاینت.
@@ -119,7 +122,8 @@ flowchart TD
 - HTTPS برای پنل در production اجباری
 - credential روتر فقط سمت سرور
 - مدیر **credential API روتر** (`MIKROTIK_USERNAME` / `MIKROTIK_PASSWORD`) را نمی‌بیند؛ اما **رمز VPN مشتری** و bundle اتصال را در `/users/:id` برای تحویل به مشتری می‌بیند
-- endpointهای `connection_bundle` و `/ovpn`: فقط مالک یا ادمین؛ بدون لاگ password در slog
+- endpointهای `connection_bundle` و `/ovpn`: فقط مالک یا ادمین؛ بدون لاگ password / `cert_key_pass` در slog
+- ساخت گواهی فقط ادمین؛ مدیر UI گواهی نمی‌بیند — [certificates.md](certificates.md)
 - Rate limit روی `/auth/login`
 - Audit log (فاز ۲ اختیاری): جدول `audit_events` برای create/delete/assign
 

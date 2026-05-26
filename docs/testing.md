@@ -25,6 +25,9 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | `internal/integration/api_test.go` | سناریوهای پایه API |
 | `internal/integration/vpn_meta_test.go` | `contact_info` / حذف فیلدهای legacy / ایجاد orphan ادمین |
 | `internal/integration/acceptance_test.go` | نگاشت به چک‌لیست [business-rules.md](business-rules.md) فاز ۱ |
+| `internal/integration/cert_test.go` | گواهی OpenVPN — create/patch، اولویت bundle، دانلود ovpn، `cert_title` مشترک، کدهای خطا |
+| `internal/password/cert_test.go` | اعتبارسنجی `cert_title` و تولید `cert_key_pass` |
+| `internal/store/store_migrate_cert_test.go` | مایگریشن ستون‌های `cert_*` |
 
 ### پوشش چک‌لیست پذیرش (backend)
 
@@ -61,6 +64,7 @@ Integration از `internal/testutil` برای bootstrap ادمین و seed مد�
 | ادمین: ایجاد / PATCH / DELETE VPN | ✓ fake | ✓ acceptance |
 | `GET /admin/stats` — جمع اتصال و تفکیک مدیر | ✓ quota | ✓ acceptance |
 | `connection_bundle` / `.ovpn` | — | ✓ acceptance |
+| گواهی OpenVPN (`cert_title`, اولویت پسورد، ovpn از روتر) | ✓ password | ✓ cert_test |
 | refresh JWT | ✓ auth | ✓ acceptance |
 | تغییر رمز `/me/password` | ✓ password | ✓ acceptance |
 
@@ -103,6 +107,8 @@ npm run test:ci   # یک‌بار، برای CI
 | `src/app/features/admin/dashboard/*.spec.ts` | داشبورد ادمین — `GET /admin/stats`، لینک «همه کاربران» بدون فیلتر orphan |
 | `src/app/features/admin/users/admin-user-list.component.spec.ts` | لیست ادمین — فیلتر پیش‌فرض «همه»، orphan، manager_id |
 | `src/app/features/manager/users/user-detail.component.spec.ts` | جزئیات کاربر — ستون اتصال در تاریخچه تمدید |
+| `src/app/features/admin/managers/managers.component.spec.ts` | مدیران — PATCH رمز؛ ایجاد/ویرایش `cert_title` |
+| `src/app/features/admin/users/admin-user-detail.component.spec.ts` | جزئیات ادمین — تأیید صدور مجدد گواهی و PATCH |
 | `src/app/app.spec.ts` | پوسته، nav مدیر/ادمین، مخفی در login |
 | `src/app/core/layout/document-locale.spec.ts` | قرارداد `lang`/`dir` سند |
 
@@ -121,6 +127,7 @@ npm run test:ci   # یک‌بار، برای CI
 | کارت اتصال مشتری | ✓ |
 | سرویس‌های API (VPN، renewals، managers) | ✓ |
 | تاریخچه تمدید در `/users/:id` — ستون `shared_users` | ✓ |
+| ادمین — `cert_title` در مدیران و تأیید regenerate در `/admin/users/:id` | ✓ |
 
 **خارج پوشش تست frontend (فاز ۱):**
 

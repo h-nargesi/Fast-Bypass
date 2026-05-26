@@ -34,6 +34,7 @@ func TestConfig(dbPath string) config.Config {
 		CORSOrigins:         []string{"http://localhost:4200"},
 		OpenVPNTemplatePath: "../config/client-template.ovpn",
 		OpenVPNDownloadURL:  "http://example.test/dl/",
+		OpenVPNKeyPassword:  "EnvKeyPass123",
 	}
 }
 

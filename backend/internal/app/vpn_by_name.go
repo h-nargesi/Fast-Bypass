@@ -37,6 +37,14 @@ func (a *App) buildVPNDetailByName(ctx context.Context, reg owner.Registry, name
 		return nil, err
 	}
 	mid, dn, un, sl, mismatch := a.enrichOwner(ctx, reg, u.Name, u.Comment)
+	ownerID := int64(0)
+	if mid != nil {
+		ownerID = *mid
+	}
+	bundle, err := a.connectionBundleForOwner(ctx, name, ownerID, u)
+	if err != nil {
+		return nil, err
+	}
 	out := map[string]any{
 		"id":                   nil,
 		"mikrotik_name":        u.Name,
@@ -46,7 +54,7 @@ func (a *App) buildVPNDetailByName(ctx context.Context, reg owner.Registry, name
 		"notes":                nil,
 		"profiles":             profileDTOs(profs),
 		"activations":          []map[string]any{},
-		"connection_bundle":    a.connectionBundle(u),
+		"connection_bundle":    bundle,
 		"manager_id":           mid,
 		"manager_display_name": dn,
 		"manager_username":     un,
@@ -255,7 +263,21 @@ func (a *App) HandleConnectionBundleByName(w http.ResponseWriter, r *http.Reques
 		httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, a.connectionBundle(u))
+	meta, err := a.ensureVPNMeta(r.Context(), reg, name, c)
+	if err != nil {
+		if errors.Is(err, errNotOwner) {
+			httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
+			return
+		}
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
+	bundle, err := a.connectionBundleFor(r.Context(), meta, u)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, bundle)
 }
 
 func (a *App) HandleDownloadOvpnByName(w http.ResponseWriter, r *http.Request) {
@@ -275,18 +297,16 @@ func (a *App) HandleDownloadOvpnByName(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
 		return
 	}
-	if u.Password == "" {
-		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "رمز در دسترس نیست")
-		return
-	}
-	body, err := a.renderOvpn(u.Name, u.Password)
+	meta, err := a.ensureVPNMeta(r.Context(), reg, name, c)
 	if err != nil {
-		httpx.WriteError(w, http.StatusServiceUnavailable, "TEMPLATE_MISSING", "قالب ovpn پیکربندی نشده")
+		if errors.Is(err, errNotOwner) {
+			httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
+			return
+		}
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
-	w.Header().Set("Content-Type", "application/x-openvpn-profile")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+u.Name+`.ovpn"`)
-	_, _ = w.Write(body)
+	a.writeOvpnDownload(w, r, meta)
 }
 
 func (a *App) HandleRemoveProfileByName(w http.ResponseWriter, r *http.Request) {
@@ -366,7 +386,7 @@ func (a *App) HandleAdminPatchVPNUserByName(w http.ResponseWriter, r *http.Reque
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "ورودی نامعتبر")
 		return
 	}
-	out, err := a.patchVPNUser(ctx, reg, meta, req.patchVPNReq, req.ManagerID, true)
+	out, err := a.adminPatchVPNUser(ctx, reg, meta, req)
 	if err != nil {
 		a.writeVPNPatchError(w, err)
 		return
@@ -428,28 +448,31 @@ func (a *App) HandleAdminConnectionBundleByName(w http.ResponseWriter, r *http.R
 		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "کاربر در روتر یافت نشد")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, a.connectionBundle(u))
-}
-
-func (a *App) HandleAdminDownloadOvpnByName(w http.ResponseWriter, r *http.Request) {
-	name := vpnMikrotikName(r)
-	u, err := a.MT.GetUser(name)
+	ctx := r.Context()
+	reg, _ := a.Registry(ctx)
+	meta, err := a.ensureVPNMeta(ctx, reg, name, nil)
 	if err != nil {
 		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "کاربر در روتر یافت نشد")
 		return
 	}
-	if u.Password == "" {
-		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "رمز در دسترس نیست")
-		return
-	}
-	body, err := a.renderOvpn(u.Name, u.Password)
+	bundle, err := a.connectionBundleFor(ctx, meta, u)
 	if err != nil {
-		httpx.WriteError(w, http.StatusServiceUnavailable, "TEMPLATE_MISSING", "قالب ovpn پیکربندی نشده")
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
-	w.Header().Set("Content-Type", "application/x-openvpn-profile")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+u.Name+`.ovpn"`)
-	_, _ = w.Write(body)
+	httpx.WriteJSON(w, http.StatusOK, bundle)
+}
+
+func (a *App) HandleAdminDownloadOvpnByName(w http.ResponseWriter, r *http.Request) {
+	name := vpnMikrotikName(r)
+	ctx := r.Context()
+	reg, _ := a.Registry(ctx)
+	meta, err := a.ensureVPNMeta(ctx, reg, name, nil)
+	if err != nil {
+		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "کاربر در روتر یافت نشد")
+		return
+	}
+	a.writeOvpnDownload(w, r, meta)
 }
 
 func (a *App) HandleAdminRemoveProfileByName(w http.ResponseWriter, r *http.Request) {

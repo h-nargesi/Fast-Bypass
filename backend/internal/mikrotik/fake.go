@@ -11,6 +11,8 @@ type FakeClient struct {
 	mu       sync.Mutex
 	users    map[string]*User
 	profiles map[string][]UserProfile
+	certs    map[string]string
+	files    map[string][]byte
 	nextID   int
 	profilesDefined map[string]bool
 }
@@ -19,6 +21,8 @@ func NewFake() *FakeClient {
 	f := &FakeClient{
 		users:    make(map[string]*User),
 		profiles: make(map[string][]UserProfile),
+		certs:    make(map[string]string),
+		files:    make(map[string][]byte),
 		profilesDefined: map[string]bool{
 			"profile-open-2M-30d": true,
 		},

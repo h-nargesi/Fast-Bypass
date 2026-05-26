@@ -54,7 +54,32 @@ func (s *Store) migrate() error {
 	if _, err = s.db.Exec(string(b)); err != nil {
 		return err
 	}
-	return s.migrateVPNMetaContactInfo()
+	if err := s.migrateVPNMetaContactInfo(); err != nil {
+		return err
+	}
+	return s.migrateCertificateColumns()
+}
+
+// migrateCertificateColumns adds cert_title / cert_key_pass for OpenVPN certificate module.
+func (s *Store) migrateCertificateColumns() error {
+	for _, spec := range []struct{ table, col string }{
+		{"managers", "cert_title"},
+		{"managers", "cert_key_pass"},
+		{"vpn_user_meta", "cert_title"},
+		{"vpn_user_meta", "cert_key_pass"},
+	} {
+		has, err := s.tableHasColumn(spec.table, spec.col)
+		if err != nil {
+			return err
+		}
+		if has {
+			continue
+		}
+		if _, err := s.db.Exec(`ALTER TABLE ` + spec.table + ` ADD COLUMN ` + spec.col + ` TEXT`); err != nil {
+			return fmt.Errorf("migrate %s.%s: %w", spec.table, spec.col, err)
+		}
+	}
+	return nil
 }
 
 // migrateVPNMetaContactInfo drops legacy local_name/contact_phone and renames contact_note → contact_info.
@@ -161,21 +186,21 @@ func (s *Store) UpdateAdminPassword(ctx context.Context, id int64, hash string) 
 
 func (s *Store) FindManagerByUsername(ctx context.Context, username string) (*Manager, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, username, password_hash, display_name, slug, quota, is_active, created_at, updated_at
+		`SELECT id, username, password_hash, display_name, slug, quota, is_active, cert_title, cert_key_pass, created_at, updated_at
 		 FROM managers WHERE username = ? COLLATE NOCASE`, username)
 	return scanManager(row)
 }
 
 func (s *Store) FindManagerByID(ctx context.Context, id int64) (*Manager, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, username, password_hash, display_name, slug, quota, is_active, created_at, updated_at
+		`SELECT id, username, password_hash, display_name, slug, quota, is_active, cert_title, cert_key_pass, created_at, updated_at
 		 FROM managers WHERE id = ?`, id)
 	return scanManager(row)
 }
 
 func (s *Store) ListManagers(ctx context.Context) ([]Manager, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, username, password_hash, display_name, slug, quota, is_active, created_at, updated_at
+		`SELECT id, username, password_hash, display_name, slug, quota, is_active, cert_title, cert_key_pass, created_at, updated_at
 		 FROM managers ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -211,14 +236,28 @@ func (s *Store) ListManagerSlugs(ctx context.Context) ([]ManagerSlug, error) {
 
 func (s *Store) CreateManager(ctx context.Context, m *Manager) error {
 	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO managers (username, password_hash, display_name, slug, quota)
-		 VALUES (?, ?, ?, ?, ?)`,
-		m.Username, m.PasswordHash, m.DisplayName, m.Slug, m.Quota)
+		`INSERT INTO managers (username, password_hash, display_name, slug, quota, cert_title, cert_key_pass)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		m.Username, m.PasswordHash, m.DisplayName, m.Slug, m.Quota,
+		nullStr(m.CertTitle), nullStr(m.CertKeyPass))
 	if err != nil {
 		return err
 	}
 	m.ID, _ = res.LastInsertId()
 	return nil
+}
+
+func (s *Store) UpdateManagerCert(ctx context.Context, id int64, title, keyPass string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE managers SET cert_title=?, cert_key_pass=?, updated_at=datetime('now') WHERE id=?`,
+		title, keyPass, id)
+	return err
+}
+
+func (s *Store) ClearManagerCert(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE managers SET cert_title=NULL, cert_key_pass=NULL, updated_at=datetime('now') WHERE id=?`, id)
+	return err
 }
 
 func (s *Store) UpdateManager(ctx context.Context, id int64, username, displayName *string, quota *int, isActive *bool, passwordHash *string) error {
@@ -278,7 +317,7 @@ func scanManager(row scanner) (*Manager, error) {
 	var m Manager
 	var active int
 	if err := row.Scan(&m.ID, &m.Username, &m.PasswordHash, &m.DisplayName, &m.Slug,
-		&m.Quota, &active, &m.CreatedAt, &m.UpdatedAt); err != nil {
+		&m.Quota, &active, &m.CertTitle, &m.CertKeyPass, &m.CreatedAt, &m.UpdatedAt); err != nil {
 		return nil, err
 	}
 	m.IsActive = active == 1
@@ -287,28 +326,42 @@ func scanManager(row scanner) (*Manager, error) {
 
 func (s *Store) FindVPNMetaByID(ctx context.Context, id int64) (*VPNUserMeta, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, mikrotik_name, manager_id, contact_info, notes, created_at, updated_at
+		`SELECT id, mikrotik_name, manager_id, contact_info, notes, cert_title, cert_key_pass, created_at, updated_at
 		 FROM vpn_user_meta WHERE id = ?`, id)
 	return scanVPNMeta(row)
 }
 
 func (s *Store) FindVPNMetaByName(ctx context.Context, name string) (*VPNUserMeta, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, mikrotik_name, manager_id, contact_info, notes, created_at, updated_at
+		`SELECT id, mikrotik_name, manager_id, contact_info, notes, cert_title, cert_key_pass, created_at, updated_at
 		 FROM vpn_user_meta WHERE mikrotik_name = ?`, name)
 	return scanVPNMeta(row)
 }
 
 func (s *Store) CreateVPNMeta(ctx context.Context, m *VPNUserMeta) error {
 	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO vpn_user_meta (mikrotik_name, manager_id, contact_info, notes)
-		 VALUES (?, ?, ?, ?)`,
-		m.MikrotikName, m.ManagerID, m.ContactInfo, m.Notes)
+		`INSERT INTO vpn_user_meta (mikrotik_name, manager_id, contact_info, notes, cert_title, cert_key_pass)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		m.MikrotikName, m.ManagerID, m.ContactInfo, m.Notes,
+		nullStr(m.CertTitle), nullStr(m.CertKeyPass))
 	if err != nil {
 		return err
 	}
 	m.ID, _ = res.LastInsertId()
 	return nil
+}
+
+func (s *Store) UpdateVPNMetaCert(ctx context.Context, id int64, title, keyPass string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE vpn_user_meta SET cert_title=?, cert_key_pass=?, updated_at=datetime('now') WHERE id=?`,
+		title, keyPass, id)
+	return err
+}
+
+func (s *Store) ClearVPNMetaCert(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE vpn_user_meta SET cert_title=NULL, cert_key_pass=NULL, updated_at=datetime('now') WHERE id=?`, id)
+	return err
 }
 
 func (s *Store) UpdateVPNMeta(ctx context.Context, id int64, contactInfo, notes *string, managerID *int64) error {
@@ -340,7 +393,8 @@ func scanVPNMeta(row scanner) (*VPNUserMeta, error) {
 	var m VPNUserMeta
 	var mgr sql.NullInt64
 	var contact, notes sql.NullString
-	if err := row.Scan(&m.ID, &m.MikrotikName, &mgr, &contact, &notes, &m.CreatedAt, &m.UpdatedAt); err != nil {
+	if err := row.Scan(&m.ID, &m.MikrotikName, &mgr, &contact, &notes,
+		&m.CertTitle, &m.CertKeyPass, &m.CreatedAt, &m.UpdatedAt); err != nil {
 		return nil, err
 	}
 	m.ManagerID = mgr

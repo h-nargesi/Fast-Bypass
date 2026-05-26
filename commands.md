@@ -16,6 +16,13 @@ cd ./backend/
 make run
 ```
 
+**Backend Windows:**
+
+```bat
+cd .\backend\
+go run .\cmd\server
+```
+
 ## Test
 
 **Frontend:**
@@ -30,6 +37,13 @@ npm run test:ci
 ```bash
 cd ./backend/
 make test
+```
+
+**Backend Windows:**
+
+```bat
+cd ./backend/
+go test .\...
 ```
 
 ## Publish

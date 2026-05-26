@@ -1,7 +1,8 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { catchError, of } from 'rxjs';
+import { catchError, finalize, of } from 'rxjs';
+import { AdminPatchVpnBody } from '../../../core/services/vpn-user.service';
 import { ApiClient } from '../../../core/api/api-client.service';
 import { VpnUserDetail } from '../../../core/models';
 import { AdminVpnService } from '../../../core/services/vpn-user.service';
@@ -82,6 +83,19 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
           <textarea matInput [(ngModel)]="editNotes" name="nt" rows="2"></textarea>
         </mat-form-field>
 
+        <mat-form-field appearance="outline">
+          <mat-label>عنوان گواهی (اختیاری)</mat-label>
+          <input
+            matInput
+            class="ltr-input"
+            [(ngModel)]="editCertTitle"
+            name="certTitle"
+            placeholder="خالی = حذف از پنل"
+            [disabled]="saving()"
+          />
+          <mat-hint>تغییر عنوان پر قبلی نیاز به تأیید صدور گواهی جدید دارد.</mat-hint>
+        </mat-form-field>
+
         @if (u.manager_id && u.owner_mismatch) {
           <p class="hint">
             برای هم‌خوان‌سازی DB با مالک روتر:
@@ -89,7 +103,9 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
           </p>
         }
 
-        <button type="submit" mat-flat-button color="primary" [disabled]="saving()">ذخیره تغییرات</button>
+        <button type="submit" mat-flat-button color="primary" [disabled]="saving()">
+          {{ saveButtonLabel() }}
+        </button>
       </form>
       <section class="card">
         <h3>تمدید / انتساب پروفایل</h3>
@@ -156,6 +172,14 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
       (confirmed)="deleteUser()"
       (cancelled)="confirmDelete.set(false)"
     />
+    <app-confirm-dialog
+      [open]="confirmCertRegenerate()"
+      title="صدور گواهی جدید"
+      message="عنوان گواهی این کاربر تغییر می‌کند. گواهی جدید روی روتر ساخته می‌شود و رمز کلید قبلی دیگر معتبر نیست. ادامه می‌دهید؟"
+      confirmLabel="صدور گواهی جدید"
+      (confirmed)="onConfirmCertRegenerate()"
+      (cancelled)="confirmCertRegenerate.set(false)"
+    />
   `,
   styles: `
     .owner dl {
@@ -215,11 +239,24 @@ export class AdminUserDetailComponent implements OnInit {
   readonly error = signal('');
   readonly saving = signal(false);
   readonly confirmDelete = signal(false);
+  readonly confirmCertRegenerate = signal(false);
+
+  readonly saveButtonLabel = computed(() => {
+    if (!this.saving()) {
+      return 'ذخیره تغییرات';
+    }
+    if (this.editCertTitle.trim() && this.editCertTitle.trim() !== this.editCertTitleInitial) {
+      return 'در حال ذخیره و ساخت گواهی…';
+    }
+    return 'در حال ذخیره…';
+  });
 
   editPassword = '';
   editShared = 1;
   editContactInfo = '';
   editNotes = '';
+  editCertTitle = '';
+  editCertTitleInitial = '';
   routerEnabled = true;
   assignAmount: number | null = null;
   assignNote = '';
@@ -244,6 +281,8 @@ export class AdminUserDetailComponent implements OnInit {
     this.editShared = u.shared_users;
     this.editContactInfo = u.contact_info ?? '';
     this.editNotes = u.notes ?? '';
+    this.editCertTitle = u.cert_title ?? '';
+    this.editCertTitleInitial = this.editCertTitle.trim();
     this.routerEnabled = !u.disabled;
   }
 
@@ -291,29 +330,56 @@ export class AdminUserDetailComponent implements OnInit {
   }
 
   saveEdit(): void {
+    if (this.needsCertRegenerateConfirm()) {
+      this.confirmCertRegenerate.set(true);
+      return;
+    }
+    this.performSave();
+  }
+
+  onConfirmCertRegenerate(): void {
+    this.confirmCertRegenerate.set(false);
+    this.performSave();
+  }
+
+  private needsCertRegenerateConfirm(): boolean {
+    const old = this.editCertTitleInitial;
+    const neu = this.editCertTitle.trim();
+    return old !== '' && neu !== '' && neu !== old;
+  }
+
+  private performSave(): void {
     const u = this.user();
     if (!u) return;
     this.saving.set(true);
-    const body: Record<string, unknown> = {
+    this.error.set('');
+    const body: AdminPatchVpnBody = {
       shared_users: this.editShared,
       contact_info: this.editContactInfo,
       notes: this.editNotes,
       disabled: !this.routerEnabled,
     };
-    if (this.editPassword) body['password'] = this.editPassword;
-    const req = u.id
-      ? this.vpn.patch(u.id, body)
-      : this.vpn.patchByName(u.mikrotik_name, body);
-    req.pipe(
-      catchError((e) => {
-        this.error.set(ApiClient.mapError(e));
-        this.saving.set(false);
-        return of(null);
-      }),
-    ).subscribe((res) => {
-      this.saving.set(false);
-      if (res) this.afterWrite(res, 'ذخیره شد');
-    });
+    if (this.editPassword) {
+      body.password = this.editPassword;
+    }
+    const ct = this.editCertTitle.trim();
+    if (ct !== this.editCertTitleInitial) {
+      body.cert_title = ct || null;
+    }
+    const req = u.id ? this.vpn.patch(u.id, body) : this.vpn.patchByName(u.mikrotik_name, body);
+    req
+      .pipe(
+        catchError((e) => {
+          this.error.set(ApiClient.mapError(e));
+          return of(null);
+        }),
+        finalize(() => this.saving.set(false)),
+      )
+      .subscribe((res) => {
+        if (res) {
+          this.afterWrite(res, 'ذخیره شد');
+        }
+      });
   }
 
   syncManagerId(): void {
