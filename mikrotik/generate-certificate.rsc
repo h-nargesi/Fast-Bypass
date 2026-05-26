@@ -1,3 +1,4 @@
+# generate-certificate
 :global TITLE;
 :global PASSPHRASE;
 
