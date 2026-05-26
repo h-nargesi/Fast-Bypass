@@ -22,11 +22,11 @@ describe('VpnUserService', () => {
   afterEach(() => http.verify());
 
   it('lists vpn users with refresh query', () => {
-    vpn.list(true).subscribe((res) => expect(res.items.length).toBe(1));
+    vpn.list({ refresh: true }).subscribe((res) => expect(res.items.length).toBe(1));
     const req = http.expectOne(
       (req) => req.url === '/api/v1/vpn-users' && req.params.get('refresh') === 'true',
     );
-    req.flush({ items: [{ mikrotik_name: 'a', shared_users: 1, profiles: [] }] });
+    req.flush({ items: [{ mikrotik_name: 'a', shared_users: 1, profiles: [] }], page: 1, page_size: 50, total: 1 });
   });
 
   it('list response maps disabled flag', () => {
@@ -40,6 +40,7 @@ describe('VpnUserService', () => {
         { mikrotik_name: 'x-off', shared_users: 1, disabled: true, profiles: [] },
         { mikrotik_name: 'x-on', shared_users: 1, disabled: false, profiles: [] },
       ],
+      page: 1, page_size: 50, total: 2,
     });
   });
 

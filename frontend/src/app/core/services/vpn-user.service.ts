@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiClient } from '../api/api-client.service';
-import { AdminStatsResponse, AdminVpnListItem, ManagerRow, RenewalItem, RenewalsResponse, VpnListItem, VpnUserDetail } from '../models';
+import { AdminStatsResponse, AdminVpnListResponse, ManagerRow, RenewalsResponse, VpnListResponse, VpnUserDetail } from '../models';
 
 export interface CreateVpnBody {
   local_name: string;
@@ -40,8 +40,13 @@ function encName(name: string): string {
 export class VpnUserService {
   private readonly api = inject(ApiClient);
 
-  list(refresh = false): Observable<{ items: VpnListItem[] }> {
-    return this.api.get('/vpn-users', { refresh: refresh ? 'true' : undefined });
+  list(opts: { refresh?: boolean; q?: string; page?: number; page_size?: number } = {}): Observable<VpnListResponse> {
+    return this.api.get('/vpn-users', {
+      refresh: opts.refresh ? 'true' : undefined,
+      q: opts.q || undefined,
+      page: opts.page != null ? String(opts.page) : undefined,
+      page_size: opts.page_size != null ? String(opts.page_size) : undefined,
+    });
   }
 
   get(id: number): Observable<VpnUserDetail> {
@@ -111,11 +116,17 @@ export class AdminVpnService {
     refresh?: boolean;
     manager_id?: number;
     orphan?: boolean;
-  } = {}): Observable<{ items: AdminVpnListItem[] }> {
+    q?: string;
+    page?: number;
+    page_size?: number;
+  } = {}): Observable<AdminVpnListResponse> {
     return this.api.get('/admin/vpn-users', {
       refresh: opts.refresh ? 'true' : undefined,
       manager_id: opts.manager_id,
       orphan: opts.orphan ? 'true' : undefined,
+      q: opts.q || undefined,
+      page: opts.page != null ? String(opts.page) : undefined,
+      page_size: opts.page_size != null ? String(opts.page_size) : undefined,
     });
   }
 
@@ -182,19 +193,28 @@ export class AdminVpnService {
 export class RenewalsService {
   private readonly api = inject(ApiClient);
 
-  managerList(settled = '', page = 1): Observable<RenewalsResponse> {
-    return this.api.get('/renewals', { settled, page: String(page) });
+  managerList(opts: { settled?: string; page?: number; page_size?: number; q?: string } = {}): Observable<RenewalsResponse> {
+    return this.api.get('/renewals', {
+      settled: opts.settled ?? '',
+      page: opts.page != null ? String(opts.page) : undefined,
+      page_size: opts.page_size != null ? String(opts.page_size) : undefined,
+      q: opts.q || undefined,
+    });
   }
 
   adminList(opts: {
     manager_id?: number;
     settled?: string;
     page?: number;
+    page_size?: number;
+    q?: string;
   } = {}): Observable<RenewalsResponse> {
     return this.api.get('/admin/renewals', {
       manager_id: opts.manager_id,
       settled: opts.settled,
       page: opts.page != null ? String(opts.page) : undefined,
+      page_size: opts.page_size != null ? String(opts.page_size) : undefined,
+      q: opts.q || undefined,
     });
   }
 

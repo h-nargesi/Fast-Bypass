@@ -5,11 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"fast-bypass/internal/auth"
 	"fast-bypass/internal/httpx"
+	"fast-bypass/internal/mikrotik"
 	"fast-bypass/internal/quota"
 	"fast-bypass/internal/store"
 )
@@ -32,13 +34,25 @@ func (a *App) HandleListVPNUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	activeOnly := r.URL.Query().Get("active_only") == "true"
+	qSearch := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	now := a.Now()
-	var items []map[string]any
+
+	type vpnRow struct {
+		name     string
+		shared   int
+		disabled bool
+		profs    []mikrotik.UserProfile
+	}
+	var filtered []vpnRow
+	var names []string
 	for _, u := range users {
 		if reg.Resolve(u.Name, u.Comment) != c.ManagerID {
 			continue
 		}
 		if activeOnly && u.Disabled {
+			continue
+		}
+		if qSearch != "" && !strings.Contains(strings.ToLower(u.Name), qSearch) {
 			continue
 		}
 		profs, _ := a.MT.ListUserProfiles(u.Name)
@@ -54,16 +68,29 @@ func (a *App) HandleListVPNUsers(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		}
+		filtered = append(filtered, vpnRow{name: u.Name, shared: u.SharedUsers, disabled: u.Disabled, profs: profs})
+		names = append(names, u.Name)
+	}
+
+	metaMap := a.Store.FindVPNMetasByNames(ctx, names)
+	total := len(filtered)
+	page, pageSize := parsePage(r), parsePageSize(r)
+	start, end := pageWindow(total, page, pageSize)
+
+	var items []map[string]any
+	for _, f := range filtered[start:end] {
 		item := map[string]any{
-			"mikrotik_name": u.Name, "shared_users": u.SharedUsers,
-			"disabled": u.Disabled, "profiles": profileDTOs(profs),
+			"mikrotik_name": f.name, "shared_users": f.shared,
+			"disabled": f.disabled, "profiles": profileDTOs(f.profs),
 		}
-		if meta, err := a.Store.FindVPNMetaByName(ctx, u.Name); err == nil {
+		if meta, ok := metaMap[f.name]; ok {
 			item["id"] = meta.ID
 		}
 		items = append(items, item)
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"items": items, "page": page, "page_size": pageSize, "total": total,
+	})
 }
 
 func (a *App) vpnMetaByID(w http.ResponseWriter, r *http.Request) (*store.VPNUserMeta, bool) {

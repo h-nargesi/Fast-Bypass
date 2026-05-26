@@ -138,7 +138,23 @@ func (a *App) HandleAdminListVPNUsers(w http.ResponseWriter, r *http.Request) {
 		filterMgr = &id
 	}
 	orphanOnly := r.URL.Query().Get("orphan") == "true"
-	var items []map[string]any
+	activeOnly := r.URL.Query().Get("active_only") == "true"
+	qSearch := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
+
+	type adminRow struct {
+		name     string
+		shared   int
+		disabled bool
+		comment  string
+		mid      *int64
+		dn       *string
+		un       *string
+		sl       *string
+		mismatch bool
+		profs    []mikrotik.UserProfile
+	}
+	var filtered []adminRow
+	var names []string
 	for _, u := range users {
 		ownerID := reg.Resolve(u.Name, u.Comment)
 		if orphanOnly && ownerID != 0 {
@@ -147,24 +163,43 @@ func (a *App) HandleAdminListVPNUsers(w http.ResponseWriter, r *http.Request) {
 		if filterMgr != nil && ownerID != *filterMgr {
 			continue
 		}
-		activeOnly := r.URL.Query().Get("active_only") == "true"
 		if activeOnly && u.Disabled {
+			continue
+		}
+		if qSearch != "" && !strings.Contains(strings.ToLower(u.Name), qSearch) &&
+			!strings.Contains(strings.ToLower(u.Comment), qSearch) {
 			continue
 		}
 		mid, dn, un, sl, mismatch := a.enrichOwner(ctx, reg, u.Name, u.Comment)
 		profs, _ := a.MT.ListUserProfiles(u.Name)
+		filtered = append(filtered, adminRow{
+			name: u.Name, shared: u.SharedUsers, disabled: u.Disabled, comment: u.Comment,
+			mid: mid, dn: dn, un: un, sl: sl, mismatch: mismatch, profs: profs,
+		})
+		names = append(names, u.Name)
+	}
+
+	metaMap := a.Store.FindVPNMetasByNames(ctx, names)
+	total := len(filtered)
+	page, pageSize := parsePage(r), parsePageSize(r)
+	start, end := pageWindow(total, page, pageSize)
+
+	var items []map[string]any
+	for _, f := range filtered[start:end] {
 		item := map[string]any{
-			"mikrotik_name": u.Name, "shared_users": u.SharedUsers, "disabled": u.Disabled,
-			"mikrotik_comment": u.Comment, "manager_id": mid,
-			"manager_display_name": dn, "manager_username": un, "manager_slug": sl,
-			"owner_mismatch": mismatch, "profiles": profileDTOs(profs),
+			"mikrotik_name": f.name, "shared_users": f.shared, "disabled": f.disabled,
+			"mikrotik_comment": f.comment, "manager_id": f.mid,
+			"manager_display_name": f.dn, "manager_username": f.un, "manager_slug": f.sl,
+			"owner_mismatch": f.mismatch, "profiles": profileDTOs(f.profs),
 		}
-		if meta, err := a.Store.FindVPNMetaByName(ctx, u.Name); err == nil {
+		if meta, ok := metaMap[f.name]; ok {
 			item["id"] = meta.ID
 		}
 		items = append(items, item)
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"items": items, "page": page, "page_size": pageSize, "total": total,
+	})
 }
 
 func (a *App) HandleAdminGetVPNUser(w http.ResponseWriter, r *http.Request) {

@@ -90,6 +90,20 @@ export interface VpnUserDetail {
   cert_title?: string | null;
 }
 
+export interface VpnListResponse {
+  items: VpnListItem[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
+export interface AdminVpnListResponse {
+  items: AdminVpnListItem[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
 export interface AdminVpnListItem extends VpnListItem {
   mikrotik_comment: string;
   manager_id: number | null;

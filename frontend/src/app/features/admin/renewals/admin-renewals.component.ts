@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { catchError, of } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, of, Subject } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client.service';
 import { ManagerRow, RenewalItem, RenewalsResponse } from '../../../core/models';
 import { AdminService, RenewalsService } from '../../../core/services/vpn-user.service';
@@ -18,7 +18,7 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
     <div class="filters card">
       <mat-form-field appearance="outline">
         <mat-label>مدیر</mat-label>
-        <mat-select [(ngModel)]="managerKey" (ngModelChange)="load()" name="mgr">
+        <mat-select [(ngModel)]="managerKey" (ngModelChange)="resetAndLoad()" name="mgr">
           <mat-option value="orphan">بدون مدیر (پیش‌فرض)</mat-option>
           @for (m of managers(); track m.id) {
             <mat-option [value]="'m:' + m.id">{{ m.display_name }}</mat-option>
@@ -27,11 +27,18 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
       </mat-form-field>
       <mat-form-field appearance="outline">
         <mat-label>تسویه</mat-label>
-        <mat-select [(ngModel)]="settled" (ngModelChange)="load()" name="stl">
+        <mat-select [(ngModel)]="settled" (ngModelChange)="resetAndLoad()" name="stl">
           <mat-option value="">تسویه‌نشده</mat-option>
           <mat-option value="settled">تسویه‌شده</mat-option>
           <mat-option value="all">همه</mat-option>
         </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>جستجو در نام کاربر</mat-label>
+        <input matInput [(ngModel)]="searchText" (ngModelChange)="onSearch($event)" name="q" autocomplete="off" />
+        @if (searchText) {
+          <button matSuffix mat-icon-button aria-label="پاک کردن" (click)="clearSearch()">✕</button>
+        }
       </mat-form-field>
     </div>
     @if (data(); as d) {
@@ -44,7 +51,7 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
       <p class="banner err">{{ error() }}</p>
     }
     @if (!loading() && items().length === 0) {
-      <div class="card empty"><p>{{ msg.emptyRenewals }}</p></div>
+      <div class="card empty"><p>{{ searchText ? 'تمدیدی با این نام یافت نشد' : msg.emptyRenewals }}</p></div>
     } @else {
       <div class="card table-wrap">
         <table>
@@ -74,15 +81,26 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
                   @if (!r.is_settled && data()?.can_settle) {
                     <button type="button" class="link" (click)="settle(r)">تسویه تا اینجا</button>
                   } @else {
-                      —
-                    }
+                    —
+                  }
                 </td>
               </tr>
             }
           </tbody>
         </table>
+        @if (total() > pageSize) {
+          <div class="pagination">
+            <button (click)="goTo(page() - 1)" [disabled]="page() <= 1">&#8249; قبلی</button>
+            <span class="page-info">صفحه {{ page() }} از {{ totalPages() }}</span>
+            <button (click)="goTo(page() + 1)" [disabled]="page() >= totalPages()">بعدی &#8250;</button>
+            <span class="muted">({{ total() }} تمدید)</span>
+          </div>
+        }
       </div>
     }
+  `,
+  styles: `
+    .search-field { min-width: 18rem; }
   `,
 })
 export class AdminRenewalsComponent implements OnInit {
@@ -95,18 +113,55 @@ export class AdminRenewalsComponent implements OnInit {
   readonly items = signal<RenewalItem[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
+  readonly total = signal(0);
+  readonly page = signal(1);
+  readonly pageSize = 50;
 
   managerKey = 'orphan';
   settled = '';
+  searchText = '';
+  private readonly search$ = new Subject<string>();
 
   ngOnInit(): void {
     this.admin.listManagers().subscribe((r) => this.managers.set(r.items));
+    this.search$.pipe(debounceTime(300), distinctUntilChanged()).subscribe(() => {
+      this.page.set(1);
+      this.load();
+    });
     this.load();
+  }
+
+  onSearch(val: string): void {
+    this.searchText = val;
+    this.search$.next(val);
+  }
+
+  clearSearch(): void {
+    this.searchText = '';
+    this.page.set(1);
+    this.load();
+  }
+
+  resetAndLoad(): void {
+    this.page.set(1);
+    this.load();
+  }
+
+  goTo(p: number): void {
+    this.page.set(p);
+    this.load();
+  }
+
+  totalPages(): number {
+    return Math.max(1, Math.ceil(this.total() / this.pageSize));
   }
 
   load(): void {
     this.loading.set(true);
-    const opts: { manager_id?: number; settled?: string } = { settled: this.settled };
+    const opts: { manager_id?: number; settled?: string; page: number; page_size: number; q?: string } = {
+      settled: this.settled, page: this.page(), page_size: this.pageSize,
+      q: this.searchText || undefined,
+    };
     if (this.managerKey.startsWith('m:')) {
       opts.manager_id = Number(this.managerKey.slice(2));
     }
@@ -123,6 +178,7 @@ export class AdminRenewalsComponent implements OnInit {
         if (!res) return;
         this.data.set(res);
         this.items.set(res.items);
+        this.total.set(res.total);
       });
   }
 

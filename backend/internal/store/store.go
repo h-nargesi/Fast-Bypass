@@ -338,6 +338,35 @@ func (s *Store) FindVPNMetaByName(ctx context.Context, name string) (*VPNUserMet
 	return scanVPNMeta(row)
 }
 
+// FindVPNMetasByNames fetches all vpn_user_meta rows for the given names in one query.
+// Returns a map keyed by mikrotik_name; missing names are absent from the map.
+func (s *Store) FindVPNMetasByNames(ctx context.Context, names []string) map[string]*VPNUserMeta {
+	if len(names) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(names))
+	args := make([]any, len(names))
+	for i, n := range names {
+		placeholders[i] = "?"
+		args[i] = n
+	}
+	q := `SELECT id, mikrotik_name, manager_id, contact_info, notes, cert_title, cert_key_pass, created_at, updated_at
+	      FROM vpn_user_meta WHERE mikrotik_name IN (` + strings.Join(placeholders, ",") + `)`
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	result := make(map[string]*VPNUserMeta, len(names))
+	for rows.Next() {
+		m, err := scanVPNMeta(rows)
+		if err == nil {
+			result[m.MikrotikName] = m
+		}
+	}
+	return result
+}
+
 func (s *Store) CreateVPNMeta(ctx context.Context, m *VPNUserMeta) error {
 	res, err := s.db.ExecContext(ctx,
 		`INSERT INTO vpn_user_meta (mikrotik_name, manager_id, contact_info, notes, cert_title, cert_key_pass)

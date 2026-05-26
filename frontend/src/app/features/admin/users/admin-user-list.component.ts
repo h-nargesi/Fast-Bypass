@@ -1,7 +1,7 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { catchError, of } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, of, Subject } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client.service';
 import { AdminVpnListItem, ManagerRow } from '../../../core/models';
 import { AdminService, AdminVpnService } from '../../../core/services/vpn-user.service';
@@ -19,7 +19,7 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
       <h2 class="page-title">همه کاربران VPN</h2>
       <div class="toolbar-actions">
         <a routerLink="/admin/users/new" class="btn primary">کاربر جدید</a>
-        <button type="button" class="btn" (click)="load(true)">بروزرسانی</button>
+        <button type="button" class="btn" (click)="refresh()">بروزرسانی</button>
       </div>
     </div>
     <div class="filters card">
@@ -32,6 +32,13 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
             <mat-option [value]="'m:' + m.id">{{ m.display_name }}</mat-option>
           }
         </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>جستجو در نام / comment</mat-label>
+        <input matInput [(ngModel)]="searchText" (ngModelChange)="onSearch($event)" name="q" autocomplete="off" />
+        @if (searchText) {
+          <button matSuffix mat-icon-button aria-label="پاک کردن" (click)="clearSearch()">✕</button>
+        }
       </mat-form-field>
     </div>
     @if (error()) {
@@ -84,31 +91,24 @@ import { MATERIAL_FORM } from '../../../shared/ui/material-form';
           }
         </tbody>
       </table>
+      @if (total() > pageSize) {
+        <div class="pagination">
+          <button (click)="goTo(page() - 1)" [disabled]="page() <= 1">&#8249; قبلی</button>
+          <span class="page-info">صفحه {{ page() }} از {{ totalPages() }}</span>
+          <button (click)="goTo(page() + 1)" [disabled]="page() >= totalPages()">بعدی &#8250;</button>
+          <span class="muted">({{ total() }} کاربر)</span>
+        </div>
+      }
     </div>
   `,
   styles: `
-    .toolbar-actions {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-    .orphan {
-      color: #666;
-      font-size: 0.85rem;
-    }
-    .warn-row {
-      background: #fffde7;
-    }
-    tr.warn-row.row-disabled td {
-      background: #eceff1;
-    }
-    .warn-tag {
-      color: #f57f17;
-    }
-    .mono {
-      font-family: ui-monospace, monospace;
-      font-size: 0.82rem;
-    }
+    .toolbar-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .orphan { color: #666; font-size: 0.85rem; }
+    .warn-row { background: #fffde7; }
+    tr.warn-row.row-disabled td { background: #eceff1; }
+    .warn-tag { color: #f57f17; }
+    .mono { font-family: ui-monospace, monospace; font-size: 0.82rem; }
+    .search-field { min-width: 18rem; }
   `,
 })
 export class AdminUserListComponent implements OnInit {
@@ -121,10 +121,20 @@ export class AdminUserListComponent implements OnInit {
   readonly items = signal<AdminVpnListItem[]>([]);
   readonly managers = signal<ManagerRow[]>([]);
   readonly error = signal('');
+  readonly total = signal(0);
+  readonly page = signal(1);
+  readonly pageSize = 50;
+
   filterMode = 'all';
+  searchText = '';
+  private readonly search$ = new Subject<string>();
 
   ngOnInit(): void {
     this.admin.listManagers().subscribe((r) => this.managers.set(r.items));
+    this.search$.pipe(debounceTime(300), distinctUntilChanged()).subscribe(() => {
+      this.page.set(1);
+      this.load(false);
+    });
     this.route.queryParams.subscribe((q) => {
       if (q['orphan'] === 'true') {
         this.filterMode = 'orphan';
@@ -133,8 +143,20 @@ export class AdminUserListComponent implements OnInit {
       } else {
         this.filterMode = 'all';
       }
+      this.page.set(1);
       this.load(false);
     });
+  }
+
+  onSearch(val: string): void {
+    this.searchText = val;
+    this.search$.next(val);
+  }
+
+  clearSearch(): void {
+    this.searchText = '';
+    this.page.set(1);
+    this.load(false);
   }
 
   onFilterChange(): void {
@@ -145,11 +167,29 @@ export class AdminUserListComponent implements OnInit {
       qp['manager_id'] = this.filterMode.slice(2);
     }
     void this.router.navigate([], { queryParams: qp });
+    this.page.set(1);
     this.load(false);
   }
 
-  load(refresh: boolean): void {
-    const opts: { refresh?: boolean; manager_id?: number; orphan?: boolean } = { refresh };
+  refresh(): void {
+    this.page.set(1);
+    this.load(true);
+  }
+
+  goTo(p: number): void {
+    this.page.set(p);
+    this.load(false);
+  }
+
+  totalPages(): number {
+    return Math.max(1, Math.ceil(this.total() / this.pageSize));
+  }
+
+  load(doRefresh: boolean): void {
+    const opts: { refresh?: boolean; manager_id?: number; orphan?: boolean; q?: string; page: number; page_size: number } = {
+      refresh: doRefresh, page: this.page(), page_size: this.pageSize,
+      q: this.searchText || undefined,
+    };
     if (this.filterMode === 'orphan') {
       opts.orphan = true;
     } else if (this.filterMode.startsWith('m:')) {
@@ -158,9 +198,12 @@ export class AdminUserListComponent implements OnInit {
     this.vpn.list(opts).pipe(
       catchError((e) => {
         this.error.set(ApiClient.mapError(e));
-        return of({ items: [] });
+        return of({ items: [], page: 1, page_size: this.pageSize, total: 0 });
       }),
-    ).subscribe((res) => this.items.set(res.items));
+    ).subscribe((res) => {
+      this.items.set(res.items);
+      this.total.set(res.total);
+    });
   }
 
   stateOf(u: AdminVpnListItem): string {

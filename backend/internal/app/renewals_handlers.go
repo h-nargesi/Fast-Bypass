@@ -119,3 +119,16 @@ func parsePageSize(r *http.Request) int {
 	}
 	return p
 }
+
+// pageWindow returns [start, end) indices for slicing a slice of length total.
+func pageWindow(total, page, pageSize int) (int, int) {
+	start := (page - 1) * pageSize
+	if start >= total {
+		return total, total
+	}
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+	return start, end
+}
