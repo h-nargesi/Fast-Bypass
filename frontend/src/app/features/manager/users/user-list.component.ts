@@ -101,7 +101,7 @@ export class UserListComponent implements OnInit {
   readonly error = signal('');
   readonly total = signal(0);
   readonly page = signal(1);
-  readonly pageSize = 50;
+  readonly pageSize = 20;
 
   searchText = '';
   private readonly search$ = new Subject<string>();

@@ -19,6 +19,7 @@ func (a *App) HandleManagerRenewals(w http.ResponseWriter, r *http.Request) {
 	a.writeRenewals(w, r, store.RenewalFilter{
 		ManagerID: &mid, Settled: r.URL.Query().Get("settled"),
 		Page: parsePage(r), PageSize: parsePageSize(r),
+		Query: r.URL.Query().Get("q"),
 	}, false)
 }
 
@@ -115,7 +116,7 @@ func parsePage(r *http.Request) int {
 func parsePageSize(r *http.Request) int {
 	p, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
 	if p < 1 {
-		return 50
+		return 20
 	}
 	return p
 }

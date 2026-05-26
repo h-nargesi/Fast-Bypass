@@ -100,7 +100,7 @@ export class ManagerRenewalsComponent implements OnInit {
   readonly error = signal('');
   readonly total = signal(0);
   readonly page = signal(1);
-  readonly pageSize = 50;
+  readonly pageSize = 20;
 
   private readonly search$ = new Subject<string>();
 

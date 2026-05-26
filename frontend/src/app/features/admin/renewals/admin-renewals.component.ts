@@ -115,7 +115,7 @@ export class AdminRenewalsComponent implements OnInit {
   readonly error = signal('');
   readonly total = signal(0);
   readonly page = signal(1);
-  readonly pageSize = 50;
+  readonly pageSize = 20;
 
   managerKey = 'orphan';
   settled = '';

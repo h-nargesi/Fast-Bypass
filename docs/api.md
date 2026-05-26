@@ -391,7 +391,7 @@ Query:
 | `settled` | `unsettled` (پیش‌فرض فیلتر جدول)، `settled`، `all` — فقط داخل همان محدودهٔ `manager_id`/orphan |
 | `from`, `to` | بازه `created_at` (ISO8601، اختیاری) |
 | `q` | جستجو در `mikrotik_name` / `contact_info` |
-| `page`, `page_size` | پیش‌فرض 1, 50 |
+| `page`, `page_size` | پیش‌فرض 1, 20 |
 
 **فیلتر مالک (سرور):**
 
@@ -429,7 +429,7 @@ Query:
     }
   ],
   "page": 1,
-  "page_size": 50,
+  "page_size": 20,
   "total": 200
 }
 ```

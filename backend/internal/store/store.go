@@ -587,7 +587,7 @@ func (s *Store) ListRenewals(ctx context.Context, filter RenewalFilter) ([]Renew
 	}
 	size := filter.PageSize
 	if size < 1 {
-		size = 50
+		size = 20
 	}
 	argsPage := append(append([]any{}, args...), size, (page-1)*size)
 	rows, err := s.db.QueryContext(ctx, q, argsPage...)
