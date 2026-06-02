@@ -79,3 +79,8 @@ go build -o server .\cmd\server
 scp .\server ubuntu@%SERVER%:/opt/fast-bypass/bin/
 ```
 
+**On Server**
+```bash
+chmod +x /opt/fast-bypass/bin/server
+```
+
