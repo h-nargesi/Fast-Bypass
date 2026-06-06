@@ -39,7 +39,7 @@
 
     /interface ovpn-server server export-client-configuration \
         server=TcpOpenVpn \
-        server-address=vm4.sangesariha.ir \
+        server-address=vm4.photon-ai.ir \
         ca-certificate=LMTCA.crt \
         client-certificate=($TITLE . ".crt") \
         client-cert-key=($TITLE . ".key")
