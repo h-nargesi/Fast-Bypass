@@ -162,9 +162,27 @@ func TestAdmin_quotaBelowUsage_rejected(t *testing.T) {
 	}, mgrToken)
 
 	w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mid, 10), map[string]any{
-		"quota": 3,
+		"quota": 5,
 	}, adminToken)
 	if w.Code != http.StatusConflict {
+		t.Fatalf("QUOTA_BELOW_USAGE: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAdmin_quotaBelowUsage_accepted(t *testing.T) {
+	application, _, _ := testutil.NewTestApp(t)
+	h := server.New(application)
+	adminToken := testutil.LoginToken(t, h, "admin", "AdminPass1")
+	mid, mgrToken := testutil.SeedManager(t, h, adminToken, "ali", "ali", 10)
+
+	testutil.DoJSON(t, h, http.MethodPost, "/api/v1/vpn-users", map[string]any{
+		"local_name": "big", "password": "Secret123", "shared_users": 6, "assign_profile": true,
+	}, mgrToken)
+
+	w := testutil.DoJSON(t, h, http.MethodPatch, "/api/v1/admin/managers/"+strconv.FormatInt(mid, 10), map[string]any{
+		"quota": 6,
+	}, adminToken)
+	if w.Code != http.StatusOK {
 		t.Fatalf("QUOTA_BELOW_USAGE: %d %s", w.Code, w.Body.String())
 	}
 }
