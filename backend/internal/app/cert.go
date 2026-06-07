@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	errInvalidCertTitle              = errors.New("invalid cert_title")
+	errInvalidCertTitle = errors.New("invalid cert_title")
 )
 
 func userOvpnFileName(mikrotikName string) string {
@@ -77,6 +77,21 @@ func patchOvpnFriendlyName(body []byte, mikrotikName string) []byte {
 	return []byte(line + "\n" + s)
 }
 
+func patchOvpnServerAddress(body []byte, serverAdr string) []byte {
+	line := fmt.Sprintf(`remote %s 1194 tcp`, serverAdr)
+	s := string(body)
+	if strings.Contains(s, "remote ") {
+		lines := strings.Split(s, "\n")
+		for i, l := range lines {
+			if strings.HasPrefix(strings.TrimSpace(l), "remote ") {
+				lines[i] = line
+				return []byte(strings.Join(lines, "\n"))
+			}
+		}
+	}
+	return []byte(line + "\n" + s)
+}
+
 func (a *App) ensureUserOvpnFile(mikrotikName, certTitle string) error {
 	src := templateOvpnFileName(certTitle)
 	body, err := a.MT.ReadFileContents(src)
@@ -84,6 +99,7 @@ func (a *App) ensureUserOvpnFile(mikrotikName, certTitle string) error {
 		return err
 	}
 	body = patchOvpnFriendlyName(body, mikrotikName)
+	body = patchOvpnServerAddress(body, a.Cfg.L2TPServer) //TODO: write test
 	return a.MT.WriteFileContents(userOvpnFileName(mikrotikName), body)
 }
 
