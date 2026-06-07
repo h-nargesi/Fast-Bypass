@@ -7,12 +7,8 @@ import (
 	"github.com/go-routeros/routeros/v3/proto"
 )
 
-func configOvpnName(mikrotikName string) string {
-	return "config-" + mikrotikName + ".ovpn"
-}
-
 func templateOvpnName(certTitle string) string {
-	return "config-" + certTitle + ".ovpn"
+	return "open-vpns/config-" + certTitle + ".ovpn"
 }
 
 // ReadFileContents returns RouterOS /file contents for a file name.

@@ -150,7 +150,7 @@ Errors: `{ "error": { "code": "QUOTA_EXCEEDED", "message": "..." } }`
 - پاسخ: `Content-Type: application/x-openvpn-profile` (یا `text/plain`)
 - `Content-Disposition: attachment; filename="{mikrotik_name}.ovpn"`
 - بدنه (بدون اجرای اسکریپت در زمان دانلود):
-  - اگر کاربر یا مدیر مالک `cert_title` دارد: محتوای `config-{mikrotik_name}.ovpn` از فایل‌سیستم روتر (ساخته‌شده در زمان ایجاد کاربر)
+  - اگر کاربر یا مدیر مالک `cert_title` دارد: محتوای `open-vpns/config-{mikrotik_name}.ovpn` از فایل‌سیستم روتر (ساخته‌شده در زمان ایجاد کاربر)
   - وگرنه: قالب `OPENVPN_TEMPLATE_PATH` + `username` / `password` / `openvpn_key_password` از env
 - خطا: `503` اگر قالب legacy پیکربندی نشده و مسیر گواهی هم در دسترس نیست؛ `404` اگر کاربر وجود ندارد
 
@@ -210,7 +210,7 @@ Query مجاز: `from`, `to`, `q`, `page`, `page_size`, `refresh` (همان مع
 | POST   | `/admin/managers`      | admin — بدنه اختیاری `cert_title` (ساخت گواهی در همان درخواست) |
 | PATCH  | `/admin/managers/:id`  | admin                                    |
 | GET    | `/admin/vpn-users`     | همه — `manager_id`, `orphan=true`؛ هر ردیف شامل مالک + `mikrotik_comment` + `owner_mismatch` |
-| POST   | `/admin/vpn-users`     | ایجاد کاربر VPN — بدنه همان `POST /vpn-users` + **`manager_id` اختیاری** + **`cert_title` اختیاری** (ساخت گواهی و `config-{mikrotik_name}.ovpn` در همان درخواست) |
+| POST   | `/admin/vpn-users`     | ایجاد کاربر VPN — بدنه همان `POST /vpn-users` + **`manager_id` اختیاری** + **`cert_title` اختیاری** (ساخت گواهی و `open-vpns/config-{mikrotik_name}.ovpn` در همان درخواست) |
 | GET    | `/admin/vpn-users/:id` | جزئیات enrich + `connection_bundle` + activations + profiles |
 | GET    | `/admin/vpn-users/:id/connection` | همان `connection_bundle` |
 | GET    | `/admin/vpn-users/:id/ovpn` | دانلود `.ovpn` — بدون `NOT_OWNER` |

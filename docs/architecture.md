@@ -33,7 +33,7 @@ flowchart LR
 | سقف (`quota`) و `slug` مدیر              | **SQLite**   | هنگام ایجاد کاربر اعمال می‌شود                |
 | `cert_title` / `cert_key_pass` کاربر و مدیر | **SQLite**   | متادیتا؛ پسورد همیشه در پنل تولید می‌شود — [certificates.md](certificates.md) |
 | گواهی و کلید (`cl-{title}`)              | **MikroTik** | اسکریپت `generate-certificate`؛ idempotent اگر وجود داشته باشد |
-| فایل `config-{mikrotik_name}.ovpn`       | **MikroTik** | ساخته در **زمان ایجاد کاربر** (ادمین + `cert_title`)؛ دانلود فقط read |
+| فایل `open-vpns/config-{mikrotik_name}.ovpn` | **MikroTik** | ساخته در **زمان ایجاد کاربر** (ادمین + `cert_title`)؛ دانلود فقط read |
 | bundle اتصال — L2TP و fallback OpenVPN   | **env**      | `L2TP_*`, `OPENVPN_*` وقتی گواهی اختصاصی نیست |
 | فایل `.ovpn` (fallback)                  | **قالب سرور** | `OPENVPN_TEMPLATE_PATH` + username/password از MikroTik |
 

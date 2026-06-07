@@ -19,11 +19,7 @@ var (
 )
 
 func userOvpnFileName(mikrotikName string) string {
-	return "config-" + mikrotikName + ".ovpn"
-}
-
-func templateOvpnFileName(certTitle string) string {
-	return "config-" + certTitle + ".ovpn"
+	return "open-vpns/config-" + mikrotikName + ".ovpn"
 }
 
 type openVPNResolved struct {
@@ -93,7 +89,7 @@ func patchOvpnServerAddress(body []byte, serverAdr string) []byte {
 }
 
 func (a *App) ensureUserOvpnFile(mikrotikName, certTitle string) error {
-	src := templateOvpnFileName(certTitle)
+	src := userOvpnFileName(certTitle)
 	body, err := a.MT.ReadFileContents(src)
 	if err != nil {
 		return err

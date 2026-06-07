@@ -6,7 +6,7 @@
 
 :if ([:len $TITLE] < 3) do={ :error "Title is required"; }
 
-:local passFile ($TITLE . ".pass")
+:local passFile ("certificates/" . $TITLE . ".pass")
 
 :if ([:len [/file find name=$passFile]] > 0) do={
     :local stored [/file get [/file find name=$passFile] contents]
@@ -29,8 +29,8 @@
 
 :put ("OpenVPN Private Key Password: " . $PASSPHRASE);
 
-:if ([:len [/file find name=("config-" . $TITLE . ".ovpn")]] = 0) do={
-    /certificate export-certificate ("cl-" . $TITLE) export-passphrase=$PASSPHRASE file-name=$TITLE
+:if ([:len [/file find name=("open-vpns/config-" . $TITLE . ".ovpn")]] = 0) do={
+    /certificate export-certificate ("cl-" . $TITLE) export-passphrase=$PASSPHRASE file-name=("certificates/" . $TITLE)
     :delay 0.5
     :put ("[generate-certificate] Certificate exported as " . $TITLE . ".crt");
     :put ("[generate-certificate] Certificate key exported as " . $TITLE . ".key");
@@ -45,7 +45,7 @@
         client-cert-key=($TITLE . ".key")
 
     :foreach fileId in=[/file find name~"^client.*\\.ovpn\$"] do={
-        /file set $fileId name=("config-" . $TITLE . ".ovpn")
+        /file set $fileId name=("open-vpns/config-" . $TITLE . ".ovpn")
     }
 
     :put ("[generate-certificate] OpenVpn config exported as config-" . $TITLE . ".ovpn");

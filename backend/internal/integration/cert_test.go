@@ -57,7 +57,7 @@ func TestAdminCreateVPN_withCert(t *testing.T) {
 		t.Fatalf("cert_key_pass: %+v", meta.CertKeyPass)
 	}
 
-	body, err := fake.ReadFileContents("config-certuser.ovpn")
+	body, err := fake.ReadFileContents("open-vpns/config-certuser.ovpn")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestManagerCreateVPN_inheritsManagerCert(t *testing.T) {
 		t.Fatal("manager missing cert_key_pass")
 	}
 
-	body, err := fake.ReadFileContents("config-m1-u1.ovpn")
+	body, err := fake.ReadFileContents("open-vpns/config-m1-u1.ovpn")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestAdmin_patchManager_certTitle(t *testing.T) {
 	if !mgr.CertTitle.Valid || mgr.CertTitle.String != "mgr-new-cert" {
 		t.Fatalf("cert_title: %+v", mgr.CertTitle)
 	}
-	if _, err := fake.ReadFileContents("config-mgr-new-cert.ovpn"); err != nil {
+	if _, err := fake.ReadFileContents("open-vpns/config-mgr-new-cert.ovpn"); err != nil {
 		t.Fatal("template ovpn should exist after cert provision")
 	}
 }
@@ -188,7 +188,7 @@ func TestAdmin_patchVPNUser_certTitle(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("change cert title: %d %s", w.Code, w.Body.String())
 	}
-	if _, err := fake.ReadFileContents("config-certu.ovpn"); err != nil {
+	if _, err := fake.ReadFileContents("open-vpns/config-certu.ovpn"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -220,7 +220,7 @@ func TestAdmin_createVPN_sharedCertTitle_twoUsers(t *testing.T) {
 	}
 
 	for _, name := range []string{"shared-a", "shared-b"} {
-		body, err := fake.ReadFileContents("config-" + name + ".ovpn")
+		body, err := fake.ReadFileContents("open-vpns/config-" + name + ".ovpn")
 		if err != nil {
 			t.Fatalf("ovpn file %s: %v", name, err)
 		}
@@ -245,7 +245,7 @@ func TestAdmin_downloadOvpn_certFile(t *testing.T) {
 	testutil.DecodeJSON(t, w, &created)
 
 	marker := "unique-ovpn-marker-dl-cert"
-	if err := fake.WriteFileContents("config-ovpnu.ovpn", []byte("client\ndev tun\n"+marker+"\n")); err != nil {
+	if err := fake.WriteFileContents("open-vpns/config-ovpnu.ovpn", []byte("client\ndev tun\n"+marker+"\n")); err != nil {
 		t.Fatal(err)
 	}
 
