@@ -29,6 +29,7 @@ type createManagerReq struct {
 func (a *App) HandleListManagers(w http.ResponseWriter, r *http.Request) {
 	list, err := a.Store.ListManagers(r.Context())
 	if err != nil {
+		a.Log.Error("failed to list managers", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -48,21 +49,25 @@ func (a *App) HandleAdminStats(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("failed to build registry for stats", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
 	users, err := a.listUsers(ctx, r.URL.Query().Get("refresh") == "true")
 	if err != nil {
+		a.Log.Warn("failed to list users for stats", "error", err)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
 	total, orphan, byOwner, err := quota.AggregateByOwner(reg, users, a.MT.ListUserProfiles, a.Now())
 	if err != nil {
+		a.Log.Warn("failed to aggregate quota for stats", "error", err)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
 	managers, err := a.Store.ListManagers(ctx)
 	if err != nil {
+		a.Log.Error("failed to list managers for stats", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -93,17 +98,26 @@ func (a *App) HandleCreateManager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	slugs, _ := a.Store.ListManagerSlugs(ctx)
+	slugs, slugErr := a.Store.ListManagerSlugs(ctx)
+	if slugErr != nil {
+		a.Log.Warn("failed to list manager slugs, proceeding without overlap check", "error", slugErr)
+	}
 	if owner.SlugOverlaps(req.Slug, slugs, 0) {
 		httpx.WriteError(w, http.StatusConflict, "SLUG_OVERLAPS", "slug با مدیر دیگر همپوشانی دارد")
 		return
 	}
-	hash, _ := password.Hash(req.Password)
+	hash, hashErr := password.Hash(req.Password)
+	if hashErr != nil {
+		a.Log.Error("failed to hash password for new manager", "error", hashErr, "username", req.Username)
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
+		return
+	}
 	m := &store.Manager{
 		Username: req.Username, PasswordHash: hash, DisplayName: req.DisplayName,
 		Slug: req.Slug, Quota: req.Quota, IsActive: true,
 	}
 	if err := a.Store.CreateManager(ctx, m); err != nil {
+		a.Log.Error("failed to create manager in DB", "error", err, "username", req.Username, "slug", req.Slug)
 		httpx.WriteError(w, http.StatusConflict, "SLUG_IN_USE", "نام کاربری یا slug تکراری است")
 		return
 	}
@@ -113,6 +127,7 @@ func (a *App) HandleCreateManager(w http.ResponseWriter, r *http.Request) {
 				httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "عنوان گواهی نامعتبر است")
 				return
 			}
+			a.Log.Error("failed to setup manager certificate", "error", err, "manager_id", m.ID, "cert_title", *req.CertTitle)
 			httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ساخت گواهی روی روتر ناموفق بود")
 			return
 		}
@@ -124,11 +139,13 @@ func (a *App) HandleAdminListVPNUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("failed to build registry for listing VPN users", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
 	users, err := a.listUsers(ctx, r.URL.Query().Get("refresh") == "true")
 	if err != nil {
+		a.Log.Warn("failed to list users from MikroTik", "error", err)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
@@ -239,6 +256,7 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		a.Log.Error("failed to find manager for patch", "error", err, "manager_id", id)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -248,6 +266,7 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 				httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "عنوان گواهی نامعتبر است")
 				return
 			}
+			a.Log.Error("failed to apply manager cert title change", "error", err, "manager_id", id, "cert_title", *req.CertTitle)
 			httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ساخت گواهی روی روتر ناموفق بود")
 			return
 		}
@@ -265,6 +284,7 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			a.Log.Error("failed to find manager by username during patch", "error", err, "username", u)
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
@@ -273,6 +293,7 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 	if req.Quota != nil {
 		used, err := a.managerUsedQuota(ctx, id)
 		if err != nil {
+			a.Log.Warn("failed to get manager used quota during patch", "error", err, "manager_id", id)
 			httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر")
 			return
 		}
@@ -291,6 +312,7 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 			}
 			h, err := password.Hash(pw)
 			if err != nil {
+				a.Log.Error("failed to hash password during manager patch", "error", err, "manager_id", id)
 				httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 				return
 			}
@@ -302,6 +324,7 @@ func (a *App) HandlePatchManager(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "مدیر یافت نشد")
 			return
 		}
+		a.Log.Error("failed to update manager in DB", "error", err, "manager_id", id)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -337,6 +360,7 @@ func (a *App) HandleAdminCreateVPNUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if findErr != nil {
+			a.Log.Error("failed to find manager for VPN user creation", "error", findErr, "manager_id", *req.ManagerID)
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
@@ -356,9 +380,11 @@ func (a *App) HandleAdminCreateVPNUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		if errors.Is(err, mikrotik.ErrUnavailable) || errors.Is(err, mikrotik.ErrNotFound) {
+			a.Log.Warn("mikrotik unavailable during VPN user creation", "error", err, "manager_id", req.ManagerID, "local_name", req.LocalName)
 			httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر یا ساخت گواهی ناموفق بود")
 			return
 		}
+		a.Log.Error("unexpected error creating VPN user", "error", err, "manager_id", req.ManagerID, "local_name", req.LocalName)
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", err.Error())
 		return
 	}

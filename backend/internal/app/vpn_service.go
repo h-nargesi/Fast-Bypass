@@ -186,7 +186,9 @@ func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createV
 
 	certTitle, certKeyPass, err := a.setupVPNCertificates(ctx, name, mgr, req.CertTitle)
 	if err != nil {
-		_ = a.MT.RemoveUser(name)
+		if rollbackErr := a.MT.RemoveUser(name); rollbackErr != nil {
+			a.Log.Warn("rollback: failed to remove user after certificate setup failed", "error", rollbackErr, "user", name)
+		}
 		return nil, err
 	}
 
@@ -202,19 +204,27 @@ func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createV
 		meta.Notes = sql.NullString{String: *req.Notes, Valid: true}
 	}
 	if err := a.Store.CreateVPNMeta(ctx, meta); err != nil {
-		_ = a.MT.RemoveUser(name)
+		if rollbackErr := a.MT.RemoveUser(name); rollbackErr != nil {
+			a.Log.Warn("rollback: failed to remove user after DB insert failed", "error", rollbackErr, "user", name)
+		}
 		return nil, err
 	}
 
 	var profs []mikrotik.UserProfile
 	if assign {
 		if err := a.MT.AddUserProfile(name, profile); err != nil {
-			_ = a.MT.RemoveUser(name)
-			_ = a.Store.DeleteVPNMeta(ctx, meta.ID)
+			if rollbackErr := a.MT.RemoveUser(name); rollbackErr != nil {
+				a.Log.Warn("rollback: failed to remove user after assign profile failed", "error", rollbackErr, "user", name)
+			}
+			if rollbackErr := a.Store.DeleteVPNMeta(ctx, meta.ID); rollbackErr != nil {
+				a.Log.Warn("rollback: failed to delete VPN meta after assign profile failed", "error", rollbackErr, "meta_id", meta.ID)
+			}
 			return nil, err
 		}
 		profs, _ = a.MT.ListUserProfiles(name)
-		_ = a.recordActivation(ctx, meta.ID, profile, req.SharedUsers, req.AmountPaid, req.Currency, nil, profs)
+		if actErr := a.recordActivation(ctx, meta.ID, profile, req.SharedUsers, req.AmountPaid, req.Currency, nil, profs); actErr != nil {
+			a.Log.Warn("failed to record profile activation", "error", actErr, "user", name, "profile", profile, "meta_id", meta.ID)
+		}
 	}
 
 	return map[string]any{
@@ -244,7 +254,9 @@ func (a *App) createOrphanVPNUser(ctx context.Context, req createVPNReq) (map[st
 	}
 	certTitle, certKeyPass, err := a.setupVPNCertificates(ctx, name, nil, req.CertTitle)
 	if err != nil {
-		_ = a.MT.RemoveUser(name)
+		if rollbackErr := a.MT.RemoveUser(name); rollbackErr != nil {
+			a.Log.Warn("rollback: failed to remove orphan user after certificate setup failed", "error", rollbackErr, "user", name)
+		}
 		return nil, err
 	}
 	meta := &store.VPNUserMeta{
@@ -258,7 +270,9 @@ func (a *App) createOrphanVPNUser(ctx context.Context, req createVPNReq) (map[st
 		meta.Notes = sql.NullString{String: *req.Notes, Valid: true}
 	}
 	if err := a.Store.CreateVPNMeta(ctx, meta); err != nil {
-		_ = a.MT.RemoveUser(name)
+		if rollbackErr := a.MT.RemoveUser(name); rollbackErr != nil {
+			a.Log.Warn("rollback: failed to remove orphan user after DB insert failed", "error", rollbackErr, "user", name)
+		}
 		return nil, err
 	}
 	assign := req.AssignProfile == nil || *req.AssignProfile
@@ -269,12 +283,18 @@ func (a *App) createOrphanVPNUser(ctx context.Context, req createVPNReq) (map[st
 	var profs []mikrotik.UserProfile
 	if assign {
 		if err := a.MT.AddUserProfile(name, profile); err != nil {
-			_ = a.MT.RemoveUser(name)
-			_ = a.Store.DeleteVPNMeta(ctx, meta.ID)
+			if rollbackErr := a.MT.RemoveUser(name); rollbackErr != nil {
+				a.Log.Warn("rollback: failed to remove orphan user after assign profile failed", "error", rollbackErr, "user", name)
+			}
+			if rollbackErr := a.Store.DeleteVPNMeta(ctx, meta.ID); rollbackErr != nil {
+				a.Log.Warn("rollback: failed to delete orphan VPN meta after assign profile failed", "error", rollbackErr, "meta_id", meta.ID)
+			}
 			return nil, err
 		}
 		profs, _ = a.MT.ListUserProfiles(name)
-		_ = a.recordActivation(ctx, meta.ID, profile, req.SharedUsers, req.AmountPaid, req.Currency, nil, profs)
+		if actErr := a.recordActivation(ctx, meta.ID, profile, req.SharedUsers, req.AmountPaid, req.Currency, nil, profs); actErr != nil {
+			a.Log.Warn("failed to record orphan activation", "error", actErr, "user", name, "profile", profile, "meta_id", meta.ID)
+		}
 	}
 	return map[string]any{
 		"id": meta.ID, "mikrotik_name": name,
