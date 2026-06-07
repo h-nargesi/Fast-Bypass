@@ -1,9 +1,9 @@
 {
   "name": "frontend",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve",d
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
