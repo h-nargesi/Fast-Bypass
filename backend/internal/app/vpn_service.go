@@ -452,8 +452,6 @@ func (a *App) writeVPNPatchError(w http.ResponseWriter, err error, request strin
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "عنوان گواهی نامعتبر است")
 	case errors.Is(err, mikrotik.ErrNotFound):
 		httpx.WriteError(w, http.StatusServiceUnavailable, "OVPN_MISSING", "فایل پیکربندی OpenVPN یافت نشد")
-	case errors.Is(err, mikrotik.ErrNotFound):
-		httpx.WriteError(w, http.StatusServiceUnavailable, "OVPN_MISSING", "فایل پیکربندی OpenVPN یافت نشد")
 	case err != nil && err.Error() == "invalid password":
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "رمز VPN نامعتبر")
 	default:
