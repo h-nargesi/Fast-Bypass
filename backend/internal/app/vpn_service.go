@@ -365,16 +365,17 @@ func (a *App) patchVPNUser(ctx context.Context, reg owner.Registry, meta *store.
 		comment = reg.PanelComment(owner.ManagerInfo{ID: mgr.ID, Slug: mgr.Slug})
 	}
 	if req.SharedUsers != nil {
+		var mgr *store.Manager
+		var used int
 		if ownerID != 0 {
-			return nil, errOrphanNoOwner
-		}
-		mgr, err := a.Store.FindManagerByID(ctx, ownerID)
-		if err != nil {
-			return nil, err
-		}
-		used, err := a.managerUsedQuota(ctx, ownerID)
-		if err != nil {
-			return nil, err
+			mgr, err = a.Store.FindManagerByID(ctx, ownerID)
+			if err != nil {
+				return nil, err
+			}
+			used, err = a.managerUsedQuota(ctx, ownerID)
+			if err != nil {
+				return nil, err
+			}
 		}
 		profs, _ := a.MT.ListUserProfiles(u.Name)
 		active := false
@@ -384,7 +385,7 @@ func (a *App) patchVPNUser(ctx context.Context, reg owner.Registry, meta *store.
 				break
 			}
 		}
-		if active && !quota.CheckIncrease(used, mgr.Quota, u.SharedUsers, *req.SharedUsers) {
+		if active && mgr != nil && !quota.CheckIncrease(used, mgr.Quota, u.SharedUsers, *req.SharedUsers) {
 			return nil, errQuotaExceeded
 		}
 	}
