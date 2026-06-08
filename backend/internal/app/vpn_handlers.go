@@ -25,11 +25,13 @@ func (a *App) HandleListVPNUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
 	users, err := a.listUsers(ctx, r.URL.Query().Get("refresh") == "true")
 	if err != nil {
+		a.Log.Error("faild to list users", "error", err)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
@@ -105,6 +107,7 @@ func (a *App) vpnMetaByID(w http.ResponseWriter, r *http.Request) (*store.VPNUse
 		return nil, false
 	}
 	if err != nil {
+		a.Log.Error("faild to find vpn meta by id", "error", err, "id", id)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return nil, false
 	}
@@ -134,6 +137,7 @@ func (a *App) HandleGetVPNUser(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := a.buildVPNDetail(ctx, reg, meta, false)
 	if err != nil {
+		a.Log.Error("faild to build vpn detail", "error", err, "name", meta.MikrotikName)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
@@ -153,6 +157,7 @@ func (a *App) HandleCreateVPNUser(w http.ResponseWriter, r *http.Request) {
 	}
 	mgr, err := a.Store.FindManagerByID(r.Context(), c.ManagerID)
 	if err != nil {
+		a.Log.Error("faild to find manager by id", "error", err, "manager_id", c.ManagerID)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -166,6 +171,7 @@ func (a *App) HandleCreateVPNUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		a.Log.Error("faild to create vpn user", "error", err, "request", req)
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", err.Error())
 		return
 	}
@@ -196,7 +202,7 @@ func (a *App) HandlePatchVPNUser(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := a.patchVPNUser(ctx, reg, meta, req, nil, false)
 	if err != nil {
-		a.writeVPNPatchError(w, err)
+		a.writeVPNPatchError(w, err, "HandlePatchVPNUser")
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, out)

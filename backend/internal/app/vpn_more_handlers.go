@@ -51,6 +51,7 @@ func (a *App) HandleAssignProfile(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusForbidden, "ORPHAN_NO_OWNER", "کاربر بدون مدیر — ابتدا مالک را در روتر مشخص کنید")
 			return
 		}
+		a.Log.Error("faild to assign vpn profile", "error", err, "request", req)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
@@ -75,6 +76,7 @@ func (a *App) HandleDeleteVPNUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.deleteVPNUser(ctx, meta); err != nil {
+		a.Log.Error("faild to delete vpn user", "error", err, "meta", meta)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -99,6 +101,7 @@ func (a *App) HandleConnectionBundle(w http.ResponseWriter, r *http.Request) {
 	}
 	bundle, err := a.connectionBundleFor(r.Context(), meta, u)
 	if err != nil {
+		a.Log.Error("faild to connection bundle", "error", err, "username", meta.MikrotikName)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}

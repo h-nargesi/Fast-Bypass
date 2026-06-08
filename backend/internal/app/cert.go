@@ -267,6 +267,7 @@ func (a *App) writeOvpnDownload(w http.ResponseWriter, r *http.Request, meta *st
 	}
 	resolved, err := a.resolveOpenVPN(ctx, meta)
 	if err != nil {
+		a.Log.Error("faild to resolve open-vpn", "error", err, "username", meta.MikrotikName, "cert-title", meta.CertTitle)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -280,6 +281,7 @@ func (a *App) writeOvpnDownload(w http.ResponseWriter, r *http.Request, meta *st
 			httpx.WriteError(w, http.StatusServiceUnavailable, "OVPN_MISSING", "فایل پیکربندی OpenVPN یافت نشد")
 			return
 		}
+		a.Log.Error("faild to change ovpn body", "error", err, "username", meta.MikrotikName)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "TEMPLATE_MISSING", "قالب ovpn پیکربندی نشده")
 		return
 	}

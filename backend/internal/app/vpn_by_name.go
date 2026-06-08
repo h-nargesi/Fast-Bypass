@@ -119,6 +119,7 @@ func (a *App) HandleGetVPNUserByName(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -133,6 +134,7 @@ func (a *App) HandleGetVPNUserByName(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := a.buildVPNDetailByName(ctx, reg, name, false)
 	if err != nil {
+		a.Log.Error("faild to build vpn detail", "error", err, "name", name)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
@@ -149,6 +151,7 @@ func (a *App) HandlePatchVPNUserByName(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -168,7 +171,7 @@ func (a *App) HandlePatchVPNUserByName(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := a.patchVPNUser(ctx, reg, meta, req, nil, false)
 	if err != nil {
-		a.writeVPNPatchError(w, err)
+		a.writeVPNPatchError(w, err, "HandlePatchVPNUserByName")
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, out)
@@ -184,6 +187,7 @@ func (a *App) HandleAssignProfileByName(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -211,6 +215,7 @@ func (a *App) HandleAssignProfileByName(w http.ResponseWriter, r *http.Request) 
 			httpx.WriteError(w, http.StatusForbidden, "ORPHAN_NO_OWNER", "کاربر بدون مدیر — ابتدا مالک را در روتر مشخص کنید")
 			return
 		}
+		a.Log.Error("faild to assign vpn profile", "error", err, "request", req)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
@@ -227,6 +232,7 @@ func (a *App) HandleDeleteVPNUserByName(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -240,6 +246,7 @@ func (a *App) HandleDeleteVPNUserByName(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := a.deleteVPNByName(ctx, name); err != nil {
+		a.Log.Error("faild to delete vpn name", "error", err, "username", name)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -269,11 +276,13 @@ func (a *App) HandleConnectionBundleByName(w http.ResponseWriter, r *http.Reques
 			httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
 			return
 		}
+		a.Log.Error("faild to ensure vpn", "error", err, "username", name)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
 	bundle, err := a.connectionBundleFor(r.Context(), meta, u)
 	if err != nil {
+		a.Log.Error("faild to connection bundle", "error", err, "username", meta.MikrotikName)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -303,6 +312,7 @@ func (a *App) HandleDownloadOvpnByName(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
 			return
 		}
+		a.Log.Error("faild to ensure vpn", "error", err, "username", name)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -320,6 +330,7 @@ func (a *App) HandleRemoveProfileByName(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -338,6 +349,7 @@ func (a *App) HandleRemoveProfileByName(w http.ResponseWriter, r *http.Request) 
 			httpx.WriteError(w, http.StatusForbidden, "NOT_OWNER", "کاربر متعلق به شما نیست")
 			return
 		}
+		a.Log.Error("faild to ensure vpn", "error", err, "username", name)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -353,6 +365,7 @@ func (a *App) HandleAdminGetVPNUserByName(w http.ResponseWriter, r *http.Request
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -362,6 +375,7 @@ func (a *App) HandleAdminGetVPNUserByName(w http.ResponseWriter, r *http.Request
 	}
 	out, err := a.buildVPNDetailByName(ctx, reg, name, true)
 	if err != nil {
+		a.Log.Error("faild to build vpn detail", "error", err, "name", name)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر")
 		return
 	}
@@ -373,6 +387,7 @@ func (a *App) HandleAdminPatchVPNUserByName(w http.ResponseWriter, r *http.Reque
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -388,7 +403,7 @@ func (a *App) HandleAdminPatchVPNUserByName(w http.ResponseWriter, r *http.Reque
 	}
 	out, err := a.adminPatchVPNUser(ctx, reg, meta, req)
 	if err != nil {
-		a.writeVPNPatchError(w, err)
+		a.writeVPNPatchError(w, err, "HandleAdminPatchVPNUserByName")
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, out)
@@ -399,6 +414,7 @@ func (a *App) HandleAdminAssignProfileByName(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -422,6 +438,7 @@ func (a *App) HandleAdminAssignProfileByName(w http.ResponseWriter, r *http.Requ
 			httpx.WriteError(w, http.StatusForbidden, "ORPHAN_NO_OWNER", "کاربر بدون مدیر — ابتدا مالک را در روتر مشخص کنید")
 			return
 		}
+		a.Log.Error("faild to assign vpn profile", "error", err, "request", req)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
@@ -435,6 +452,7 @@ func (a *App) HandleAdminDeleteVPNUserByName(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if err := a.deleteVPNByName(r.Context(), name); err != nil {
+		a.Log.Error("faild to delete vpn by name", "error", err, "username", name)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -457,6 +475,7 @@ func (a *App) HandleAdminConnectionBundleByName(w http.ResponseWriter, r *http.R
 	}
 	bundle, err := a.connectionBundleFor(ctx, meta, u)
 	if err != nil {
+		a.Log.Error("faild to connection bundle", "error", err, "username", meta.MikrotikName)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -469,6 +488,7 @@ func (a *App) HandleAdminDownloadOvpnByName(w http.ResponseWriter, r *http.Reque
 	reg, _ := a.Registry(ctx)
 	meta, err := a.ensureVPNMeta(ctx, reg, name, nil)
 	if err != nil {
+		a.Log.Error("faild to ensure vpn", "error", err, "username", name)
 		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "کاربر در روتر یافت نشد")
 		return
 	}
@@ -481,15 +501,18 @@ func (a *App) HandleAdminRemoveProfileByName(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 	reg, err := a.Registry(ctx)
 	if err != nil {
+		a.Log.Error("faild to registry", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
 	meta, err := a.ensureVPNMeta(ctx, reg, name, nil)
 	if err != nil {
+		a.Log.Error("faild to ensure vpn", "error", err, "username", name)
 		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "کاربر در روتر یافت نشد")
 		return
 	}
 	if err := a.removeVPNProfile(meta, profileRowID); err != nil {
+		a.Log.Error("faild to remove vpn profile", "error", err, "profile_row_id", profileRowID, "meta", meta)
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "حذف پروفایل ممکن نیست")
 		return
 	}

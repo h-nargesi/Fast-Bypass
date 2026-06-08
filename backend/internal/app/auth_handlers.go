@@ -41,6 +41,7 @@ func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		pair, err := a.Auth.NewPair(auth.Claims{Role: auth.RoleAdmin, Username: adm.Username})
 		if err != nil {
+			a.Log.Error("faild to login", "error", err, "username", req.Username)
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
@@ -50,10 +51,12 @@ func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	mgr, err := a.Store.FindManagerByUsername(ctx, req.Username)
 	if errors.Is(err, sql.ErrNoRows) {
+		a.Log.Warn("faild to login", "error", err, "username", req.Username)
 		httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "نام کاربری یا رمز اشتباه است")
 		return
 	}
 	if err != nil {
+		a.Log.Error("faild to find manager by username", "error", err, "username", req.Username)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -70,6 +73,7 @@ func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Role: auth.RoleManager, ManagerID: mgr.ID, Slug: mgr.Slug, Username: mgr.Username,
 	})
 	if err != nil {
+		a.Log.Error("faild to generate new pair", "error", err, "username", req.Username)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -98,6 +102,7 @@ func (a *App) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 	pair, err := a.Auth.NewPair(*c)
 	if err != nil {
+		a.Log.Error("faild to refresh", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -120,6 +125,7 @@ func (a *App) HandleMe(w http.ResponseWriter, r *http.Request) {
 	if c.Role == auth.RoleAdmin {
 		adm, err := a.Store.FindAdminByUsername(ctx, c.Username)
 		if err != nil {
+			a.Log.Error("faild to find admin by username", "error", err, "username", c.Username)
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
@@ -130,6 +136,7 @@ func (a *App) HandleMe(w http.ResponseWriter, r *http.Request) {
 	}
 	mgr, err := a.Store.FindManagerByID(ctx, c.ManagerID)
 	if err != nil {
+		a.Log.Error("faild to find manager by id", "error", err, "manager_id", c.ManagerID)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -179,6 +186,7 @@ func (a *App) HandlePatchMe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := a.Store.UpdateManager(ctx, c.ManagerID, nil, req.DisplayName, nil, nil, nil); err != nil {
+			a.Log.Error("faild to update manager", "error", err, "manager_id", c.ManagerID)
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
@@ -211,10 +219,12 @@ func (a *App) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 		}
 		hash, err := password.Hash(req.NewPassword)
 		if err != nil {
+			a.Log.Error("faild to generate hash", "error", err, "plain", req.NewPassword)
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
 		if err := a.Store.UpdateAdminPassword(ctx, adm.ID, hash); err != nil {
+			a.Log.Error("faild to update admin", "error", err, "manager_id", adm.ID)
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
@@ -226,10 +236,12 @@ func (a *App) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 		}
 		hash, err := password.Hash(req.NewPassword)
 		if err != nil {
+			a.Log.Error("faild to generate hash", "error", err, "plain", req.NewPassword)
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
 		if err := a.Store.UpdateManager(ctx, c.ManagerID, nil, nil, nil, nil, &hash); err != nil {
+			a.Log.Error("faild to update manager", "error", err, "manager_id", c.ManagerID)
 			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 			return
 		}
@@ -250,6 +262,7 @@ func (a *App) HandleMeQuota(w http.ResponseWriter, r *http.Request) {
 	}
 	used, err := a.managerUsedQuota(r.Context(), c.ManagerID)
 	if err != nil {
+		a.Log.Error("faild to get manager used quota", "error", err, "manager_id", c.ManagerID)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}

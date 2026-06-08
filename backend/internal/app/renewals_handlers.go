@@ -27,8 +27,8 @@ func (a *App) HandleAdminRenewals(w http.ResponseWriter, r *http.Request) {
 	filter := store.RenewalFilter{
 		Settled: r.URL.Query().Get("settled"),
 		Page:    parsePage(r), PageSize: parsePageSize(r),
-		From:    r.URL.Query().Get("from"), To: r.URL.Query().Get("to"),
-		Query:   r.URL.Query().Get("q"),
+		From: r.URL.Query().Get("from"), To: r.URL.Query().Get("to"),
+		Query: r.URL.Query().Get("q"),
 	}
 	if v := r.URL.Query().Get("manager_id"); v != "" {
 		id, _ := strconv.ParseInt(v, 10, 64)
@@ -42,11 +42,13 @@ func (a *App) HandleAdminRenewals(w http.ResponseWriter, r *http.Request) {
 func (a *App) writeRenewals(w http.ResponseWriter, r *http.Request, filter store.RenewalFilter, canSettle bool) {
 	items, total, _, err := a.Store.ListRenewals(r.Context(), filter)
 	if err != nil {
+		a.Log.Error("faild to list renewals", "error", err, "filter", filter)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
 	summary, err := a.applyRenewalsLiveSharedUsers(r.Context(), filter, items)
 	if err != nil {
+		a.Log.Error("faild to apply renewals shared users", "error", err)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
@@ -94,6 +96,7 @@ func (a *App) HandleSettleThrough(w http.ResponseWriter, r *http.Request) {
 	}
 	adm, err := a.Store.FindAdminByUsername(r.Context(), c.Username)
 	if err != nil {
+		a.Log.Error("faild to find admin", "error", err, "username", c.Username)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}

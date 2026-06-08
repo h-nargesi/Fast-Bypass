@@ -58,7 +58,6 @@ func (a *App) enrichOwner(ctx context.Context, reg owner.Registry, name, comment
 	return &mid, &dn, &un, &sl, reg.OwnerMismatch(name, comment, id)
 }
 
-
 func (a *App) buildVPNDetail(ctx context.Context, reg owner.Registry, meta *store.VPNUserMeta, includeComment bool) (map[string]any, error) {
 	u, err := a.MT.GetUser(meta.MikrotikName)
 	if err != nil {
@@ -73,10 +72,10 @@ func (a *App) buildVPNDetail(ctx context.Context, reg owner.Registry, meta *stor
 	out := map[string]any{
 		"id": meta.ID, "mikrotik_name": u.Name,
 		"shared_users": u.SharedUsers,
-		"disabled": u.Disabled,
+		"disabled":     u.Disabled,
 		"contact_info": nullStrVal(meta.ContactInfo),
-		"notes": nullStrVal(meta.Notes),
-		"profiles": profileDTOs(profs), "activations": a.activationDTOsWithLiveShared(ctx, acts, u.Name),
+		"notes":        nullStrVal(meta.Notes),
+		"profiles":     profileDTOs(profs), "activations": a.activationDTOsWithLiveShared(ctx, acts, u.Name),
 		"manager_id": mid, "manager_display_name": dn, "manager_username": un, "manager_slug": sl,
 		"owner_mismatch": mismatch,
 	}
@@ -195,7 +194,7 @@ func (a *App) createVPNUser(ctx context.Context, mgr *store.Manager, req createV
 	mid := mgr.ID
 	meta := &store.VPNUserMeta{
 		MikrotikName: name, ManagerID: sql.NullInt64{Int64: mid, Valid: true},
-		CertTitle:    certTitle, CertKeyPass: certKeyPass,
+		CertTitle: certTitle, CertKeyPass: certKeyPass,
 	}
 	if req.ContactInfo != nil {
 		meta.ContactInfo = sql.NullString{String: *req.ContactInfo, Valid: true}
@@ -325,7 +324,7 @@ type patchVPNReq struct {
 
 type adminPatchVPNReq struct {
 	patchVPNReq
-	ManagerID              *int64 `json:"manager_id"`
+	ManagerID *int64  `json:"manager_id"`
 	CertTitle *string `json:"cert_title"`
 }
 
@@ -366,7 +365,7 @@ func (a *App) patchVPNUser(ctx context.Context, reg owner.Registry, meta *store.
 		comment = reg.PanelComment(owner.ManagerInfo{ID: mgr.ID, Slug: mgr.Slug})
 	}
 	if req.SharedUsers != nil {
-		if ownerID == 0 {
+		if ownerID != 0 {
 			return nil, errOrphanNoOwner
 		}
 		mgr, err := a.Store.FindManagerByID(ctx, ownerID)
@@ -440,7 +439,7 @@ func (a *App) removeVPNProfile(meta *store.VPNUserMeta, profileRowID string) err
 	return a.MT.RemoveUserProfile(profileRowID)
 }
 
-func (a *App) writeVPNPatchError(w http.ResponseWriter, err error) {
+func (a *App) writeVPNPatchError(w http.ResponseWriter, err error, request string) {
 	switch {
 	case errors.Is(err, errQuotaExceeded):
 		httpx.WriteError(w, http.StatusConflict, "QUOTA_EXCEEDED", "سقف تعداد کاربران (اتصال همزمان) پر است")
@@ -450,15 +449,14 @@ func (a *App) writeVPNPatchError(w http.ResponseWriter, err error) {
 		httpx.WriteError(w, http.StatusConflict, "OWNER_MISMATCH", "manager_id با مالک واقعی روتر هم‌خوان نیست")
 	case errors.Is(err, errInvalidCertTitle):
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "عنوان گواهی نامعتبر است")
+	case errors.Is(err, mikrotik.ErrNotFound):
+		httpx.WriteError(w, http.StatusServiceUnavailable, "OVPN_MISSING", "فایل پیکربندی OpenVPN یافت نشد")
+	case errors.Is(err, mikrotik.ErrNotFound):
+		httpx.WriteError(w, http.StatusServiceUnavailable, "OVPN_MISSING", "فایل پیکربندی OpenVPN یافت نشد")
+	case err != nil && err.Error() == "invalid password":
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "رمز VPN نامعتبر")
 	default:
-		if errors.Is(err, mikrotik.ErrNotFound) {
-			httpx.WriteError(w, http.StatusServiceUnavailable, "OVPN_MISSING", "فایل پیکربندی OpenVPN یافت نشد")
-			return
-		}
-		if err != nil && err.Error() == "invalid password" {
-			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "رمز VPN نامعتبر")
-			return
-		}
+		a.Log.Error("error in vpn service", "path", request, "error", err)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 	}
 }

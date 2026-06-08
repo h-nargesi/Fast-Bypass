@@ -227,6 +227,7 @@ func (a *App) HandleAdminGetVPNUser(w http.ResponseWriter, r *http.Request) {
 	reg, _ := a.Registry(r.Context())
 	out, err := a.buildVPNDetail(r.Context(), reg, meta, true)
 	if err != nil {
+		a.Log.Error("failed to get vpn users", "error", err)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر")
 		return
 	}
@@ -404,7 +405,7 @@ func (a *App) HandleAdminPatchVPNUser(w http.ResponseWriter, r *http.Request) {
 	reg, _ := a.Registry(r.Context())
 	out, err := a.adminPatchVPNUser(r.Context(), reg, meta, req)
 	if err != nil {
-		a.writeVPNPatchError(w, err)
+		a.writeVPNPatchError(w, err, "HandleAdminPatchVPNUser")
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, out)
@@ -416,6 +417,7 @@ func (a *App) HandleAdminDeleteVPNUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.deleteVPNUser(r.Context(), meta); err != nil {
+		a.Log.Error("faild to delete vpn users", "error", err, "manager_id", meta.ManagerID, "user_id", meta.ID, "user_name", meta.MikrotikName)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -443,6 +445,7 @@ func (a *App) HandleAdminAssignProfile(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusForbidden, "ORPHAN_NO_OWNER", "کاربر بدون مدیر — ابتدا مالک را در روتر مشخص کنید")
 			return
 		}
+		a.Log.Error("faild to assign profile", "error", err, "manager_id", meta.ManagerID, "profile_name", req.ProfileName, "user_id", meta.ID, "user_name", meta.MikrotikName)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "MIKROTIK_UNAVAILABLE", "ارتباط با روتر برقرار نشد")
 		return
 	}
@@ -461,6 +464,7 @@ func (a *App) HandleAdminConnectionBundle(w http.ResponseWriter, r *http.Request
 	}
 	bundle, err := a.connectionBundleFor(r.Context(), meta, u)
 	if err != nil {
+		a.Log.Error("faild to connection bundle", "error", err, "manager_id", meta.ManagerID, "user_id", meta.ID, "user_name", meta.MikrotikName)
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL", "خطای سرور")
 		return
 	}
@@ -482,6 +486,7 @@ func (a *App) HandleAdminRemoveProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	profileRowID := chi.URLParam(r, "profileRowId")
 	if err := a.removeVPNProfile(meta, profileRowID); err != nil {
+		a.Log.Error("faild to assign profile", "error", err, "manager_id", meta.ManagerID, "profile_row_id", profileRowID, "user_id", meta.ID, "user_name", meta.MikrotikName)
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION", "حذف پروفایل ممکن نیست")
 		return
 	}

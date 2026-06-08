@@ -18,6 +18,7 @@ import (
 func main() {
 	cfg := config.Load()
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	log.Info("Sabalan has started ...")
 
 	st, err := store.Open(cfg.SQLitePath)
 	if err != nil {
