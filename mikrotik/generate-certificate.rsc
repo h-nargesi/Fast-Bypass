@@ -45,7 +45,7 @@
     /interface ovpn-server server export-client-configuration \
         server=TcpOpenVpn \
         server-address=vm4.photon-ai.ir \
-        ca-certificate=LMTCA.crt \
+        ca-certificate=certificates/LMTCA.crt \
         client-certificate=$certFile \
         client-cert-key=$keyFile
 
