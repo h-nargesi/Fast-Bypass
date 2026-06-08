@@ -8,7 +8,7 @@
 
 :local certBase ("certificates/" . $TITLE)
 :local passFile ($certBase . ".pass")
-:local certFile ($certBase . ".cert")
+:local certFile ($certBase . ".crt")
 :local keyFile ($certBase . ".key")
 :local certName ("cl-" . $TITLE)
 :local configFile ("open-vpns/config-" . $TITLE . ".ovpn")
